@@ -6,12 +6,12 @@
 <title>Text Blur — Gooey Type Studio</title>
 <style>
   :root {
-    --paper: #f2e9dc;
     --ink: #1c1714;
     --panel: #ffffff;
     --line: #e7ddcd;
     --accent: #e2580f;
     --muted: #8c8275;
+    --field: #fbf8f2;
     --shadow: 0 10px 30px rgba(40, 25, 10, .12);
   }
   * { box-sizing: border-box; }
@@ -28,12 +28,7 @@
   }
 
   /* ---------- Stage / preview ---------- */
-  .stage {
-    display: grid;
-    place-items: center;
-    padding: 28px;
-    min-width: 0;
-  }
+  .stage { display: grid; place-items: center; padding: 28px; min-width: 0; }
   .frame {
     position: relative;
     width: min(100%, 70vh);
@@ -41,8 +36,20 @@
     border-radius: 22px;
     overflow: hidden;
     box-shadow: var(--shadow);
-    background: var(--paper);
+    background: #fff;
   }
+  /* checkerboard shown when background is "none" */
+  .frame.transparent {
+    background-color: #fff;
+    background-image:
+      linear-gradient(45deg, #e9e2d6 25%, transparent 25%),
+      linear-gradient(-45deg, #e9e2d6 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e9e2d6 75%),
+      linear-gradient(-45deg, transparent 75%, #e9e2d6 75%);
+    background-size: 24px 24px;
+    background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+  }
+  .frame.playing { cursor: crosshair; }
   svg.canvas { display: block; width: 100%; height: 100%; }
 
   /* ---------- Control panel ---------- */
@@ -53,88 +60,87 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 22px;
+    gap: 20px;
   }
   .brand { display: flex; align-items: baseline; gap: 8px; }
   .brand h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
   .brand span { font-size: 12px; color: var(--muted); }
 
-  .field label {
+  label.cap {
     display: block;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    color: var(--muted);
-    margin-bottom: 6px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); margin-bottom: 8px;
   }
-  .field input[type="text"] {
+  input[type="text"].textInput {
     width: 100%;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px 12px;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--ink);
-    background: #fbf8f2;
-    outline: none;
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; font-size: 15px; font-weight: 600;
+    color: var(--ink); background: var(--field); outline: none;
   }
-  .field input[type="text"]:focus { border-color: var(--accent); }
+  input[type="text"].textInput:focus { border-color: var(--accent); }
+
+  /* fill + bg color rows */
+  .colorRow { display: flex; align-items: center; gap: 10px; }
+  input[type="color"] {
+    width: 38px; height: 34px; padding: 0; border: 1px solid var(--line);
+    border-radius: 9px; background: none; cursor: pointer;
+  }
+  .colorRow .hex { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* segmented control */
+  .seg { display: flex; background: var(--field); border: 1px solid var(--line);
+         border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg button {
+    flex: 1; border: none; background: none; color: var(--muted);
+    padding: 7px 6px; font-size: 12px; font-weight: 600; border-radius: 7px; cursor: pointer;
+  }
+  .seg button.active { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  .uploadBtn {
+    width: 100%; border: 1px dashed var(--line); background: var(--field);
+    border-radius: 10px; padding: 12px; font-size: 13px; font-weight: 600;
+    color: var(--ink); cursor: pointer;
+  }
+  .uploadBtn:hover { border-color: var(--accent); }
+  .fileName { font-size: 11px; color: var(--muted); margin-top: 6px; word-break: break-all; }
+
+  /* Figma-style coordinate fields */
+  .coords { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .coord {
+    display: flex; align-items: center; gap: 6px;
+    border: 1px solid var(--line); border-radius: 9px; background: var(--field);
+    padding: 0 10px;
+  }
+  .coord:focus-within { border-color: var(--accent); }
+  .coord .axis { font-size: 12px; font-weight: 700; color: var(--muted); width: 12px; }
+  .coord input {
+    border: none; background: none; outline: none; width: 100%;
+    padding: 9px 0; font-size: 14px; font-weight: 600; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
 
   /* ---------- Dials ---------- */
-  .dials {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px 14px;
-  }
-  .dial {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    user-select: none;
-  }
-  .knob {
-    position: relative;
-    width: 86px; height: 86px;
-    touch-action: none;
-    cursor: ns-resize;
-  }
+  .dials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .dial { display: flex; flex-direction: column; align-items: center; gap: 8px; user-select: none; }
+  .knob { position: relative; width: 84px; height: 84px; touch-action: none; cursor: ns-resize; }
   .knob svg { display: block; width: 100%; height: 100%; }
-  .knob .val {
-    position: absolute; inset: 0;
-    display: grid; place-items: center;
-    font-size: 18px; font-weight: 700;
-    pointer-events: none;
-  }
-  .dial .name {
-    font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
-    color: var(--muted);
-  }
+  .knob .val { position: absolute; inset: 0; display: grid; place-items: center;
+               font-size: 17px; font-weight: 700; pointer-events: none; }
+  .dial .name { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
 
   .row { display: flex; gap: 10px; }
-  button {
-    flex: 1;
-    border: 1px solid var(--line);
-    background: #fbf8f2;
-    color: var(--ink);
-    border-radius: 10px;
-    padding: 11px 12px;
-    font-size: 13px; font-weight: 600;
-    cursor: pointer;
-    transition: background .15s, border-color .15s;
+  button.btn {
+    flex: 1; border: 1px solid var(--line); background: var(--field); color: var(--ink);
+    border-radius: 10px; padding: 11px 12px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background .15s, border-color .15s;
   }
-  button:hover { border-color: var(--accent); }
-  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  button.primary:hover { filter: brightness(1.05); }
-
-  .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
-  .swatch {
-    width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
-    border: 2px solid transparent; padding: 0;
-  }
-  .swatch.active { border-color: var(--ink); }
+  button.btn:hover { border-color: var(--accent); }
+  button.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.btn.primary:hover { filter: brightness(1.05); }
+  button.btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
 
   .hint { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .group { display: flex; flex-direction: column; gap: 10px; }
 
   @media (max-width: 820px) {
     body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
@@ -146,267 +152,291 @@
 <body>
   <!-- ============ STAGE ============ -->
   <div class="stage">
-    <div class="frame">
-      <svg class="canvas" id="canvas" viewBox="0 0 800 1000" xmlns="http://www.w3.org/2000/svg">
+    <div class="frame transparent" id="frame">
+      <svg class="canvas" id="canvas" viewBox="0 0 800 1000"
+           xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <defs>
-          <radialGradient id="blobGrad" cx="50%" cy="46%" r="58%">
-            <stop offset="0%"  stop-color="#c11c08"/>
-            <stop offset="42%" stop-color="#d8410a"/>
-            <stop offset="72%" stop-color="#ef7c12"/>
-            <stop offset="100%" stop-color="#f6a51f"/>
-          </radialGradient>
-
-          <!-- soft feathered edge for the blob -->
-          <filter id="blobBlur" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="26"/>
-          </filter>
-
-          <!-- paper grain -->
-          <filter id="paper">
-            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="n"/>
-            <feColorMatrix in="n" type="matrix"
-              values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .06 0"/>
-          </filter>
-
-          <!-- the gooey text filter (updated live) -->
-          <filter id="goo" x="-40%" y="-40%" width="180%" height="180%">
+          <filter id="goo" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur id="gooBlur" in="SourceGraphic" stdDeviation="8" result="blur"/>
             <feColorMatrix id="gooMatrix" in="blur" type="matrix"
               values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -11" result="goo"/>
             <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
           </filter>
+          <clipPath id="frameClip"><rect width="800" height="1000"/></clipPath>
         </defs>
 
-        <!-- paper background -->
-        <rect id="bg" width="800" height="1000" fill="#f2e9dc"/>
-        <!-- orange blob -->
-        <circle cx="400" cy="460" r="300" fill="url(#blobGrad)" filter="url(#blobBlur)"/>
-        <!-- gooey wordmark -->
-        <g id="textGroup">
-          <text id="word" x="400" y="490" text-anchor="middle" dominant-baseline="middle"
-                filter="url(#goo)"
-                font-family="'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif"
-                font-weight="900" font-size="150" fill="#fbf3e6"
-                letter-spacing="-6">Nocaff</text>
+        <g clip-path="url(#frameClip)">
+          <!-- background: none (transparent) | color rect | image -->
+          <rect id="bg" width="800" height="1000" fill="none"/>
+          <image id="bgImage" width="800" height="1000" preserveAspectRatio="xMidYMid slice"
+                 style="display:none"/>
+          <!-- gooey wordmark -->
+          <g id="textGroup">
+            <text id="word" x="400" y="500" text-anchor="middle" dominant-baseline="central"
+                  filter="url(#goo)"
+                  font-family="'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+                  font-weight="900" font-size="150" fill="#1c1714"
+                  letter-spacing="-6">Nocaff</text>
+          </g>
         </g>
-        <!-- paper grain on top -->
-        <rect width="800" height="1000" filter="url(#paper)" style="mix-blend-mode:multiply"/>
       </svg>
     </div>
   </div>
 
   <!-- ============ PANEL ============ -->
   <aside class="panel">
-    <div class="brand">
-      <h1>Text Blur</h1><span>gooey type studio</span>
+    <div class="brand"><h1>Text Blur</h1><span>gooey type studio</span></div>
+
+    <div class="group">
+      <label class="cap" for="textInput">Text</label>
+      <input id="textInput" class="textInput" type="text" value="Nocaff" maxlength="24"
+             autocomplete="off" spellcheck="false"/>
     </div>
 
-    <div class="field">
-      <label for="textInput">Text</label>
-      <input id="textInput" type="text" value="Nocaff" maxlength="20" autocomplete="off" spellcheck="false"/>
+    <div class="group">
+      <label class="cap">Text colour</label>
+      <div class="colorRow">
+        <input type="color" id="textColor" value="#1c1714"/>
+        <span class="hex" id="textHex">#1c1714</span>
+      </div>
+    </div>
+
+    <div class="group">
+      <label class="cap">Background</label>
+      <div class="seg" id="bgSeg">
+        <button data-mode="none" class="active">None</button>
+        <button data-mode="color">Colour</button>
+        <button data-mode="image">Image</button>
+      </div>
+      <div class="colorRow" id="bgColorRow" style="display:none">
+        <input type="color" id="bgColor" value="#e2580f"/>
+        <span class="hex" id="bgHex">#e2580f</span>
+      </div>
+      <div id="bgImageRow" style="display:none">
+        <button class="uploadBtn" id="uploadBtn">Upload an image…</button>
+        <input type="file" id="bgFile" accept="image/*" hidden/>
+        <div class="fileName" id="fileName"></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <label class="cap">Position</label>
+      <div class="coords">
+        <div class="coord"><span class="axis">X</span><input id="posX" type="number" value="0" step="1"/></div>
+        <div class="coord"><span class="axis">Y</span><input id="posY" type="number" value="0" step="1"/></div>
+      </div>
     </div>
 
     <div class="dials" id="dials"></div>
 
-    <div class="field">
-      <label>Background</label>
-      <div class="swatches" id="swatches"></div>
-    </div>
+    <button class="btn" id="play">▶ Play — blur follows cursor</button>
 
     <div class="row">
-      <button id="randomize">Surprise me</button>
-      <button id="download" class="primary">Download PNG</button>
+      <button class="btn" id="randomize">Surprise me</button>
+      <button class="btn primary" id="download">Download PNG</button>
     </div>
 
-    <p class="hint">Drag a dial up/down to change it (double-click to reset).
-       <b>Amount</b> sets blur strength, <b>Feather</b> melts hard edges into soft glow,
-       <b>X/Y</b> nudge the wordmark inside the blob.</p>
+    <p class="hint">Type your text, then shape it: <b>Amount</b> is blur strength,
+      <b>Feather</b> melts hard gooey edges into a soft glow, and <b>X/Y</b> nudge the
+      wordmark. Hit <b>Play</b> and hover over the canvas — the blur drifts toward your
+      cursor and breathes when still, like the reference clip.</p>
   </aside>
 
 <script>
 (() => {
   const $ = (s) => document.querySelector(s);
 
-  // ---- state ----
+  // ---------- state ----------
   const state = {
     posX: 0, posY: 0, amount: 8, feather: 18,
+    textColor: '#1c1714',
+    bgMode: 'none', bgColor: '#e2580f', bgImage: null,
+    play: false,
   };
 
-  // dial definitions: key, label, min, max, default, suffix
+  // dials only for amount + feather (X/Y are number fields now)
   const DEFS = [
-    { key: 'posX',    name: 'Position X', min: -260, max: 260, def: 0,  unit: '' },
-    { key: 'posY',    name: 'Position Y', min: -300, max: 300, def: 0,  unit: '' },
-    { key: 'amount',  name: 'Amount',     min: 0,    max: 40,  def: 8,  unit: '' },
-    { key: 'feather', name: 'Feather',    min: 0,    max: 100, def: 18, unit: '' },
+    { key: 'amount',  name: 'Amount',  min: 0, max: 40,  def: 8  },
+    { key: 'feather', name: 'Feather', min: 0, max: 100, def: 18 },
   ];
 
-  // ---- backgrounds (inner -> ... -> outer + paper) ----
-  const PALETTES = [
-    { name:'Peach',   paper:'#f2e9dc', stops:['#c11c08','#d8410a','#ef7c12','#f6a51f'] },
-    { name:'Berry',   paper:'#efe6ee', stops:['#5a0b3d','#9c1458','#d4267e','#f06ab0'] },
-    { name:'Ocean',   paper:'#e4ecef', stops:['#062a52','#0d5aa7','#1f93d6','#7ed0f2'] },
-    { name:'Forest',  paper:'#e8ecdf', stops:['#123a16','#1f6f2b','#43a648','#9bd17a'] },
-    { name:'Mono',    paper:'#ececec', stops:['#0a0a0a','#2c2c2c','#5e5e5e','#9a9a9a'] },
-    { name:'Grape',   paper:'#ece7f3', stops:['#2d0a52','#5b21b6','#8b5cf6','#c4b5fd'] },
-  ];
-  let paletteIdx = 0;
+  // live offsets driven by Play mode (added on top of base values)
+  let dynX = 0, dynY = 0, dynBlur = 0;
 
   // ===================================================================
   //  Rendering
   // ===================================================================
-  function applyText() {
-    $('#word').textContent = $('#textInput').value || ' ';
+  function gooMatrixValues(feather) {
+    const t = feather / 100;
+    const mul = 1 + (1 - t) * 21;      // 22 -> 1
+    const off = -(mul / 2) * (1 - t);  // -11 -> 0
+    return `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${mul.toFixed(2)} ${off.toFixed(2)}`;
   }
 
   function render() {
-    // position
-    $('#textGroup').setAttribute('transform', `translate(${state.posX} ${state.posY})`);
-    // blur amount
-    $('#gooBlur').setAttribute('stdDeviation', state.amount);
-    // feather -> alpha contrast in colour matrix
-    // feather 0  = hard gooey threshold (sharp blob edge)
-    // feather 100 = soft, fully feathered glow (no threshold)
-    const t = state.feather / 100;
-    const mul = 1 + (1 - t) * 21;          // 22 -> 1
-    const off = -(mul / 2) * (1 - t);      // -11 -> 0
-    $('#gooMatrix').setAttribute('values',
-      `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${mul.toFixed(2)} ${off.toFixed(2)}`);
+    $('#textGroup').setAttribute('transform',
+      `translate(${(state.posX + dynX).toFixed(1)} ${(state.posY + dynY).toFixed(1)})`);
+    $('#gooBlur').setAttribute('stdDeviation', Math.max(0, state.amount + dynBlur).toFixed(2));
+    $('#gooMatrix').setAttribute('values', gooMatrixValues(state.feather));
+    $('#word').setAttribute('fill', state.textColor);
   }
 
-  function applyPalette(p) {
-    const stops = document.querySelectorAll('#blobGrad stop');
-    stops.forEach((s, i) => s.setAttribute('stop-color', p.stops[i]));
-    $('#bg').setAttribute('fill', p.paper);
+  function applyBg() {
+    const bg = $('#bg'), img = $('#bgImage'), frame = $('#frame');
+    frame.classList.toggle('transparent', state.bgMode === 'none');
+    if (state.bgMode === 'color') {
+      bg.setAttribute('fill', state.bgColor);
+      img.style.display = 'none';
+    } else if (state.bgMode === 'image' && state.bgImage) {
+      bg.setAttribute('fill', 'none');
+      img.setAttribute('href', state.bgImage);
+      img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', state.bgImage);
+      img.style.display = '';
+    } else {
+      bg.setAttribute('fill', 'none');
+      img.style.display = 'none';
+    }
   }
 
   // ===================================================================
-  //  Dial widgets
+  //  Dial widgets (Amount + Feather)
   // ===================================================================
-  const R = 34, CIRC = 2 * Math.PI * R, ARC = 0.78; // 78% sweep
+  const R = 33, CIRC = 2 * Math.PI * R, ARC = 0.78;
   function buildDial(def) {
     const wrap = document.createElement('div');
     wrap.className = 'dial';
     wrap.innerHTML = `
       <div class="knob" data-key="${def.key}">
-        <svg viewBox="0 0 86 86">
-          <circle cx="43" cy="43" r="${R}" fill="#fbf8f2" stroke="#e7ddcd" stroke-width="6"/>
-          <circle class="track" cx="43" cy="43" r="${R}" fill="none" stroke="#ece2d2" stroke-width="6"
+        <svg viewBox="0 0 84 84">
+          <circle cx="42" cy="42" r="${R}" fill="#fbf8f2" stroke="#e7ddcd" stroke-width="6"/>
+          <circle cx="42" cy="42" r="${R}" fill="none" stroke="#ece2d2" stroke-width="6"
             stroke-linecap="round" stroke-dasharray="${(CIRC*ARC).toFixed(1)} ${CIRC}"
-            transform="rotate(${90 + (1-ARC)*180} 43 43)"/>
-          <circle class="prog" cx="43" cy="43" r="${R}" fill="none" stroke="#e2580f" stroke-width="6"
+            transform="rotate(${90 + (1-ARC)*180} 42 42)"/>
+          <circle class="prog" cx="42" cy="42" r="${R}" fill="none" stroke="#e2580f" stroke-width="6"
             stroke-linecap="round" stroke-dasharray="0 ${CIRC}"
-            transform="rotate(${90 + (1-ARC)*180} 43 43)"/>
-          <line class="ind" x1="43" y1="43" x2="43" y2="16" stroke="#1c1714" stroke-width="3" stroke-linecap="round"/>
+            transform="rotate(${90 + (1-ARC)*180} 42 42)"/>
+          <line class="ind" x1="42" y1="42" x2="42" y2="16" stroke="#1c1714" stroke-width="3" stroke-linecap="round"/>
         </svg>
         <div class="val"></div>
       </div>
       <div class="name">${def.name}</div>`;
     return wrap;
   }
-
   function updateDial(def) {
     const knob = document.querySelector(`.knob[data-key="${def.key}"]`);
-    const v = state[def.key];
-    const frac = (v - def.min) / (def.max - def.min);   // 0..1
-    const prog = knob.querySelector('.prog');
-    prog.setAttribute('stroke-dasharray', `${(CIRC*ARC*frac).toFixed(1)} ${CIRC}`);
-    const ang = (1 - ARC) * 180 + frac * ARC * 360;     // degrees
-    knob.querySelector('.ind').setAttribute('transform', `rotate(${ang} 43 43)`);
-    const disp = (def.key === 'posX' || def.key === 'posY')
-      ? Math.round(v) : Math.round(v);
-    knob.querySelector('.val').textContent = disp;
+    const frac = (state[def.key] - def.min) / (def.max - def.min);
+    knob.querySelector('.prog').setAttribute('stroke-dasharray', `${(CIRC*ARC*frac).toFixed(1)} ${CIRC}`);
+    knob.querySelector('.ind').setAttribute('transform',
+      `rotate(${(1-ARC)*180 + frac*ARC*360} 42 42)`);
+    knob.querySelector('.val').textContent = Math.round(state[def.key]);
   }
-
-  function setupDialDrag(def) {
+  function setupDial(def) {
     const knob = document.querySelector(`.knob[data-key="${def.key}"]`);
     let startY = 0, startVal = 0, dragging = false;
-
-    const onMove = (e) => {
+    const move = (e) => {
       if (!dragging) return;
-      const y = (e.touches ? e.touches[0].clientY : e.clientY);
-      const dy = startY - y;                       // up = increase
-      const range = def.max - def.min;
-      let v = startVal + (dy / 180) * range;        // 180px = full range
-      v = Math.max(def.min, Math.min(def.max, v));
-      state[def.key] = v;
-      updateDial(def);
-      render();
+      const y = e.touches ? e.touches[0].clientY : e.clientY;
+      let v = startVal + ((startY - y) / 180) * (def.max - def.min);
+      state[def.key] = Math.max(def.min, Math.min(def.max, v));
+      updateDial(def); render();
     };
-    const onUp = () => {
+    const up = () => {
       dragging = false;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onUp);
+      window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up);
+      window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up);
     };
-    const onDown = (e) => {
+    const down = (e) => {
       dragging = true;
-      startY = (e.touches ? e.touches[0].clientY : e.clientY);
+      startY = e.touches ? e.touches[0].clientY : e.clientY;
       startVal = state[def.key];
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
-      window.addEventListener('touchmove', onMove, { passive: false });
-      window.addEventListener('touchend', onUp);
+      window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+      window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up);
       e.preventDefault();
     };
-    knob.addEventListener('mousedown', onDown);
-    knob.addEventListener('touchstart', onDown, { passive: false });
-    knob.addEventListener('dblclick', () => {
-      state[def.key] = def.def; updateDial(def); render();
-    });
-    // scroll wheel fine-tune
+    knob.addEventListener('mousedown', down);
+    knob.addEventListener('touchstart', down, { passive: false });
+    knob.addEventListener('dblclick', () => { state[def.key] = def.def; updateDial(def); render(); });
     knob.addEventListener('wheel', (e) => {
       e.preventDefault();
-      const step = (def.max - def.min) / 100;
-      state[def.key] = Math.max(def.min, Math.min(def.max,
-        state[def.key] - Math.sign(e.deltaY) * step * 2));
+      const step = (def.max - def.min) / 50;
+      state[def.key] = Math.max(def.min, Math.min(def.max, state[def.key] - Math.sign(e.deltaY) * step));
       updateDial(def); render();
     }, { passive: false });
   }
 
   // ===================================================================
-  //  Swatches
+  //  Play mode — blur follows the cursor on hover
   // ===================================================================
-  function buildSwatches() {
-    const box = $('#swatches');
-    PALETTES.forEach((p, i) => {
-      const b = document.createElement('button');
-      b.className = 'swatch' + (i === paletteIdx ? ' active' : '');
-      b.style.background = `linear-gradient(135deg, ${p.stops[0]}, ${p.stops[2]})`;
-      b.title = p.name;
-      b.addEventListener('click', () => {
-        paletteIdx = i;
-        applyPalette(p);
-        document.querySelectorAll('.swatch').forEach((s, j) =>
-          s.classList.toggle('active', j === i));
-      });
-      box.appendChild(b);
-    });
+  let raf = null, hover = false;
+  let mx = 0.5, my = 0.5, lastMx = 0.5, lastMy = 0.5, lastT = 0, speed = 0;
+
+  const frame = $('#frame');
+  frame.addEventListener('pointermove', (e) => {
+    const r = frame.getBoundingClientRect();
+    mx = (e.clientX - r.left) / r.width;
+    my = (e.clientY - r.top) / r.height;
+    hover = true;
+    const now = performance.now();
+    if (lastT) {
+      const dt = Math.max(16, now - lastT);
+      speed = Math.min(1, Math.hypot(mx - lastMx, my - lastMy) / dt * 1000);
+    }
+    lastMx = mx; lastMy = my; lastT = now;
+  });
+  frame.addEventListener('pointerleave', () => { hover = false; });
+
+  function loop(t) {
+    // target offset follows the cursor when hovering; recentres otherwise
+    const targetX = hover ? (mx - 0.5) * 170 : 0;
+    const targetY = hover ? (my - 0.5) * 210 : 0;
+    // blur: boosted by how fast you move, plus a gentle idle "breathing"
+    const idle = (Math.sin(t / 700) * 0.5 + 0.5) * 5;
+    const targetBlur = hover ? 4 + speed * 26 : idle;
+
+    dynX += (targetX - dynX) * 0.12;
+    dynY += (targetY - dynY) * 0.12;
+    dynBlur += (targetBlur - dynBlur) * 0.15;
+    speed *= 0.90; // decay so it settles when the cursor stops
+    render();
+    raf = requestAnimationFrame(loop);
+  }
+  function setPlay(on) {
+    state.play = on;
+    const btn = $('#play');
+    btn.classList.toggle('active', on);
+    btn.textContent = on ? '⏸ Stop' : '▶ Play — blur follows cursor';
+    frame.classList.toggle('playing', on);
+    if (on) {
+      lastT = 0; speed = 0;
+      raf = requestAnimationFrame(loop);
+    } else {
+      cancelAnimationFrame(raf); raf = null;
+      dynX = dynY = dynBlur = 0;
+      render();
+    }
   }
 
   // ===================================================================
   //  Export PNG
   // ===================================================================
   function download() {
-    const svg = $('#canvas');
-    const clone = svg.cloneNode(true);
+    const wasPlaying = state.play;
+    if (wasPlaying) setPlay(false);
+    const clone = $('#canvas').cloneNode(true);
     clone.setAttribute('width', 1600);
     clone.setAttribute('height', 2000);
     const xml = new XMLSerializer().serializeToString(clone);
-    const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml;charset=utf-8' }));
     const img = new Image();
     img.onload = () => {
       const c = document.createElement('canvas');
       c.width = 1600; c.height = 2000;
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0);
+      c.getContext('2d').drawImage(img, 0, 0);
       URL.revokeObjectURL(url);
       c.toBlob((png) => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(png);
-        a.download = (($('#textInput').value || 'text-blur')
-          .replace(/\s+/g, '-').toLowerCase()) + '.png';
+        a.download = (($('#textInput').value || 'text-blur').replace(/\s+/g, '-').toLowerCase()) + '.png';
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       }, 'image/png');
@@ -416,32 +446,71 @@
   }
 
   // ===================================================================
-  //  Init
+  //  Wiring
   // ===================================================================
   const dialBox = $('#dials');
-  DEFS.forEach((def) => {
-    dialBox.appendChild(buildDial(def));
-    updateDial(def);
-    setupDialDrag(def);
-  });
-  buildSwatches();
+  DEFS.forEach((def) => { dialBox.appendChild(buildDial(def)); updateDial(def); setupDial(def); });
 
-  $('#textInput').addEventListener('input', applyText);
+  $('#textInput').addEventListener('input', (e) => { $('#word').textContent = e.target.value || ' '; });
+
+  $('#textColor').addEventListener('input', (e) => {
+    state.textColor = e.target.value; $('#textHex').textContent = e.target.value; render();
+  });
+
+  // background mode
+  $('#bgSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    state.bgMode = b.dataset.mode;
+    [...$('#bgSeg').children].forEach((c) => c.classList.toggle('active', c === b));
+    $('#bgColorRow').style.display = state.bgMode === 'color' ? '' : 'none';
+    $('#bgImageRow').style.display = state.bgMode === 'image' ? '' : 'none';
+    applyBg();
+  });
+  $('#bgColor').addEventListener('input', (e) => {
+    state.bgColor = e.target.value; $('#bgHex').textContent = e.target.value; applyBg();
+  });
+  $('#uploadBtn').addEventListener('click', () => $('#bgFile').click());
+  $('#bgFile').addEventListener('change', (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      state.bgImage = reader.result;
+      $('#fileName').textContent = file.name;
+      applyBg();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // coordinate fields
+  const bindCoord = (id, key) => {
+    const el = $('#' + id);
+    el.addEventListener('input', () => {
+      const v = parseFloat(el.value);
+      state[key] = isNaN(v) ? 0 : v; render();
+    });
+  };
+  bindCoord('posX', 'posX');
+  bindCoord('posY', 'posY');
+
+  $('#play').addEventListener('click', () => setPlay(!state.play));
   $('#download').addEventListener('click', download);
+
   $('#randomize').addEventListener('click', () => {
     state.amount  = 4 + Math.random() * 22;
     state.feather = Math.random() * 60;
-    state.posX    = (Math.random() - 0.5) * 220;
-    state.posY    = (Math.random() - 0.5) * 240;
-    paletteIdx    = Math.floor(Math.random() * PALETTES.length);
-    applyPalette(PALETTES[paletteIdx]);
-    document.querySelectorAll('.swatch').forEach((s, j) =>
-      s.classList.toggle('active', j === paletteIdx));
+    state.posX = Math.round((Math.random() - 0.5) * 220);
+    state.posY = Math.round((Math.random() - 0.5) * 240);
+    $('#posX').value = state.posX; $('#posY').value = state.posY;
+    if (state.bgMode === 'color') {
+      state.bgColor = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+      $('#bgColor').value = state.bgColor; $('#bgHex').textContent = state.bgColor; applyBg();
+    }
     DEFS.forEach(updateDial);
     render();
   });
 
-  applyText();
+  // init
+  applyBg();
   render();
 })();
 </script>

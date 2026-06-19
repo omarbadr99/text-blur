@@ -12,18 +12,18 @@ Just open `index.html` in any modern browser. There is no build step.
 
 ## Controls
 
-The effect is driven by four rotary **dials** (drag up/down, scroll to
-fine-tune, double-click to reset):
-
-| Dial | What it does |
+| Control | What it does |
 | --- | --- |
-| **Position X / Y** | Nudge the wordmark around inside the blob |
+| **Text** | The word to render |
+| **Text colour** | Fill colour of the wordmark |
+| **Background** | **None** (transparent, the default) · **Colour** (solid fill) · **Image** (upload your own) |
+| **Position X / Y** | Figma-style number fields to place the wordmark |
 | **Amount** | Gaussian blur strength — higher melts letters together |
 | **Feather** | Softens the gooey threshold; low = crisp blob edges, high = soft glow |
+| **Play** | Animates the effect: hover the canvas and the blur drifts toward your cursor, then breathes when still (like the reference clip) |
 
-Plus a **text** field, six **background** palettes (recolours the blob and
-paper), a **Surprise me** randomiser, and **Download PNG** (exports at
-1600 × 2000, filters baked in).
+Plus a **Surprise me** randomiser and **Download PNG** (exports at 1600 × 2000;
+transparency is preserved when the background is *None*).
 
 ## How it works
 
