@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Text Blur — Gooey Type Studio</title>
+<style>
+  :root {
+    --paper: #f2e9dc;
+    --ink: #1c1714;
+    --panel: #ffffff;
+    --line: #e7ddcd;
+    --accent: #e2580f;
+    --muted: #8c8275;
+    --shadow: 0 10px 30px rgba(40, 25, 10, .12);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: #ece2d2;
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---------- Stage / preview ---------- */
+  .stage {
+    display: grid;
+    place-items: center;
+    padding: 28px;
+    min-width: 0;
+  }
+  .frame {
+    position: relative;
+    width: min(100%, 70vh);
+    aspect-ratio: 800 / 1000;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    background: var(--paper);
+  }
+  svg.canvas { display: block; width: 100%; height: 100%; }
+
+  /* ---------- Control panel ---------- */
+  .panel {
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    padding: 22px 22px 28px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 8px; }
+  .brand h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+  .brand span { font-size: 12px; color: var(--muted); }
+
+  .field label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .field input[type="text"] {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    background: #fbf8f2;
+    outline: none;
+  }
+  .field input[type="text"]:focus { border-color: var(--accent); }
+
+  /* ---------- Dials ---------- */
+  .dials {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 14px;
+  }
+  .dial {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+  }
+  .knob {
+    position: relative;
+    width: 86px; height: 86px;
+    touch-action: none;
+    cursor: ns-resize;
+  }
+  .knob svg { display: block; width: 100%; height: 100%; }
+  .knob .val {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    font-size: 18px; font-weight: 700;
+    pointer-events: none;
+  }
+  .dial .name {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted);
+  }
+
+  .row { display: flex; gap: 10px; }
+  button {
+    flex: 1;
+    border: 1px solid var(--line);
+    background: #fbf8f2;
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 11px 12px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { filter: brightness(1.05); }
+
+  .swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .swatch {
+    width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+    border: 2px solid transparent; padding: 0;
+  }
+  .swatch.active { border-color: var(--ink); }
+
+  .hint { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  @media (max-width: 820px) {
+    body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+    .panel { border-left: none; border-top: 1px solid var(--line); }
+    .frame { width: min(86vw, 52vh); }
+  }
+</style>
+</head>
+<body>
+  <!-- ============ STAGE ============ -->
+  <div class="stage">
+    <div class="frame">
+      <svg class="canvas" id="canvas" viewBox="0 0 800 1000" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="blobGrad" cx="50%" cy="46%" r="58%">
+            <stop offset="0%"  stop-color="#c11c08"/>
+            <stop offset="42%" stop-color="#d8410a"/>
+            <stop offset="72%" stop-color="#ef7c12"/>
+            <stop offset="100%" stop-color="#f6a51f"/>
+          </radialGradient>
+
+          <!-- soft feathered edge for the blob -->
+          <filter id="blobBlur" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="26"/>
+          </filter>
+
+          <!-- paper grain -->
+          <filter id="paper">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch" result="n"/>
+            <feColorMatrix in="n" type="matrix"
+              values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .06 0"/>
+          </filter>
+
+          <!-- the gooey text filter (updated live) -->
+          <filter id="goo" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur id="gooBlur" in="SourceGraphic" stdDeviation="8" result="blur"/>
+            <feColorMatrix id="gooMatrix" in="blur" type="matrix"
+              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -11" result="goo"/>
+            <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+          </filter>
+        </defs>
+
+        <!-- paper background -->
+        <rect id="bg" width="800" height="1000" fill="#f2e9dc"/>
+        <!-- orange blob -->
+        <circle cx="400" cy="460" r="300" fill="url(#blobGrad)" filter="url(#blobBlur)"/>
+        <!-- gooey wordmark -->
+        <g id="textGroup">
+          <text id="word" x="400" y="490" text-anchor="middle" dominant-baseline="middle"
+                filter="url(#goo)"
+                font-family="'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+                font-weight="900" font-size="150" fill="#fbf3e6"
+                letter-spacing="-6">Nocaff</text>
+        </g>
+        <!-- paper grain on top -->
+        <rect width="800" height="1000" filter="url(#paper)" style="mix-blend-mode:multiply"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- ============ PANEL ============ -->
+  <aside class="panel">
+    <div class="brand">
+      <h1>Text Blur</h1><span>gooey type studio</span>
+    </div>
+
+    <div class="field">
+      <label for="textInput">Text</label>
+      <input id="textInput" type="text" value="Nocaff" maxlength="20" autocomplete="off" spellcheck="false"/>
+    </div>
+
+    <div class="dials" id="dials"></div>
+
+    <div class="field">
+      <label>Background</label>
+      <div class="swatches" id="swatches"></div>
+    </div>
+
+    <div class="row">
+      <button id="randomize">Surprise me</button>
+      <button id="download" class="primary">Download PNG</button>
+    </div>
+
+    <p class="hint">Drag a dial up/down to change it (double-click to reset).
+       <b>Amount</b> sets blur strength, <b>Feather</b> melts hard edges into soft glow,
+       <b>X/Y</b> nudge the wordmark inside the blob.</p>
+  </aside>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+
+  // ---- state ----
+  const state = {
+    posX: 0, posY: 0, amount: 8, feather: 18,
+  };
+
+  // dial definitions: key, label, min, max, default, suffix
+  const DEFS = [
+    { key: 'posX',    name: 'Position X', min: -260, max: 260, def: 0,  unit: '' },
+    { key: 'posY',    name: 'Position Y', min: -300, max: 300, def: 0,  unit: '' },
+    { key: 'amount',  name: 'Amount',     min: 0,    max: 40,  def: 8,  unit: '' },
+    { key: 'feather', name: 'Feather',    min: 0,    max: 100, def: 18, unit: '' },
+  ];
+
+  // ---- backgrounds (inner -> ... -> outer + paper) ----
+  const PALETTES = [
+    { name:'Peach',   paper:'#f2e9dc', stops:['#c11c08','#d8410a','#ef7c12','#f6a51f'] },
+    { name:'Berry',   paper:'#efe6ee', stops:['#5a0b3d','#9c1458','#d4267e','#f06ab0'] },
+    { name:'Ocean',   paper:'#e4ecef', stops:['#062a52','#0d5aa7','#1f93d6','#7ed0f2'] },
+    { name:'Forest',  paper:'#e8ecdf', stops:['#123a16','#1f6f2b','#43a648','#9bd17a'] },
+    { name:'Mono',    paper:'#ececec', stops:['#0a0a0a','#2c2c2c','#5e5e5e','#9a9a9a'] },
+    { name:'Grape',   paper:'#ece7f3', stops:['#2d0a52','#5b21b6','#8b5cf6','#c4b5fd'] },
+  ];
+  let paletteIdx = 0;
+
+  // ===================================================================
+  //  Rendering
+  // ===================================================================
+  function applyText() {
+    $('#word').textContent = $('#textInput').value || ' ';
+  }
+
+  function render() {
+    // position
+    $('#textGroup').setAttribute('transform', `translate(${state.posX} ${state.posY})`);
+    // blur amount
+    $('#gooBlur').setAttribute('stdDeviation', state.amount);
+    // feather -> alpha contrast in colour matrix
+    // feather 0  = hard gooey threshold (sharp blob edge)
+    // feather 100 = soft, fully feathered glow (no threshold)
+    const t = state.feather / 100;
+    const mul = 1 + (1 - t) * 21;          // 22 -> 1
+    const off = -(mul / 2) * (1 - t);      // -11 -> 0
+    $('#gooMatrix').setAttribute('values',
+      `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${mul.toFixed(2)} ${off.toFixed(2)}`);
+  }
+
+  function applyPalette(p) {
+    const stops = document.querySelectorAll('#blobGrad stop');
+    stops.forEach((s, i) => s.setAttribute('stop-color', p.stops[i]));
+    $('#bg').setAttribute('fill', p.paper);
+  }
+
+  // ===================================================================
+  //  Dial widgets
+  // ===================================================================
+  const R = 34, CIRC = 2 * Math.PI * R, ARC = 0.78; // 78% sweep
+  function buildDial(def) {
+    const wrap = document.createElement('div');
+    wrap.className = 'dial';
+    wrap.innerHTML = `
+      <div class="knob" data-key="${def.key}">
+        <svg viewBox="0 0 86 86">
+          <circle cx="43" cy="43" r="${R}" fill="#fbf8f2" stroke="#e7ddcd" stroke-width="6"/>
+          <circle class="track" cx="43" cy="43" r="${R}" fill="none" stroke="#ece2d2" stroke-width="6"
+            stroke-linecap="round" stroke-dasharray="${(CIRC*ARC).toFixed(1)} ${CIRC}"
+            transform="rotate(${90 + (1-ARC)*180} 43 43)"/>
+          <circle class="prog" cx="43" cy="43" r="${R}" fill="none" stroke="#e2580f" stroke-width="6"
+            stroke-linecap="round" stroke-dasharray="0 ${CIRC}"
+            transform="rotate(${90 + (1-ARC)*180} 43 43)"/>
+          <line class="ind" x1="43" y1="43" x2="43" y2="16" stroke="#1c1714" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <div class="val"></div>
+      </div>
+      <div class="name">${def.name}</div>`;
+    return wrap;
+  }
+
+  function updateDial(def) {
+    const knob = document.querySelector(`.knob[data-key="${def.key}"]`);
+    const v = state[def.key];
+    const frac = (v - def.min) / (def.max - def.min);   // 0..1
+    const prog = knob.querySelector('.prog');
+    prog.setAttribute('stroke-dasharray', `${(CIRC*ARC*frac).toFixed(1)} ${CIRC}`);
+    const ang = (1 - ARC) * 180 + frac * ARC * 360;     // degrees
+    knob.querySelector('.ind').setAttribute('transform', `rotate(${ang} 43 43)`);
+    const disp = (def.key === 'posX' || def.key === 'posY')
+      ? Math.round(v) : Math.round(v);
+    knob.querySelector('.val').textContent = disp;
+  }
+
+  function setupDialDrag(def) {
+    const knob = document.querySelector(`.knob[data-key="${def.key}"]`);
+    let startY = 0, startVal = 0, dragging = false;
+
+    const onMove = (e) => {
+      if (!dragging) return;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY);
+      const dy = startY - y;                       // up = increase
+      const range = def.max - def.min;
+      let v = startVal + (dy / 180) * range;        // 180px = full range
+      v = Math.max(def.min, Math.min(def.max, v));
+      state[def.key] = v;
+      updateDial(def);
+      render();
+    };
+    const onUp = () => {
+      dragging = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+    const onDown = (e) => {
+      dragging = true;
+      startY = (e.touches ? e.touches[0].clientY : e.clientY);
+      startVal = state[def.key];
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onUp);
+      e.preventDefault();
+    };
+    knob.addEventListener('mousedown', onDown);
+    knob.addEventListener('touchstart', onDown, { passive: false });
+    knob.addEventListener('dblclick', () => {
+      state[def.key] = def.def; updateDial(def); render();
+    });
+    // scroll wheel fine-tune
+    knob.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const step = (def.max - def.min) / 100;
+      state[def.key] = Math.max(def.min, Math.min(def.max,
+        state[def.key] - Math.sign(e.deltaY) * step * 2));
+      updateDial(def); render();
+    }, { passive: false });
+  }
+
+  // ===================================================================
+  //  Swatches
+  // ===================================================================
+  function buildSwatches() {
+    const box = $('#swatches');
+    PALETTES.forEach((p, i) => {
+      const b = document.createElement('button');
+      b.className = 'swatch' + (i === paletteIdx ? ' active' : '');
+      b.style.background = `linear-gradient(135deg, ${p.stops[0]}, ${p.stops[2]})`;
+      b.title = p.name;
+      b.addEventListener('click', () => {
+        paletteIdx = i;
+        applyPalette(p);
+        document.querySelectorAll('.swatch').forEach((s, j) =>
+          s.classList.toggle('active', j === i));
+      });
+      box.appendChild(b);
+    });
+  }
+
+  // ===================================================================
+  //  Export PNG
+  // ===================================================================
+  function download() {
+    const svg = $('#canvas');
+    const clone = svg.cloneNode(true);
+    clone.setAttribute('width', 1600);
+    clone.setAttribute('height', 2000);
+    const xml = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = 1600; c.height = 2000;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      c.toBlob((png) => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(png);
+        a.download = (($('#textInput').value || 'text-blur')
+          .replace(/\s+/g, '-').toLowerCase()) + '.png';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      }, 'image/png');
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); alert('Export failed — try again.'); };
+    img.src = url;
+  }
+
+  // ===================================================================
+  //  Init
+  // ===================================================================
+  const dialBox = $('#dials');
+  DEFS.forEach((def) => {
+    dialBox.appendChild(buildDial(def));
+    updateDial(def);
+    setupDialDrag(def);
+  });
+  buildSwatches();
+
+  $('#textInput').addEventListener('input', applyText);
+  $('#download').addEventListener('click', download);
+  $('#randomize').addEventListener('click', () => {
+    state.amount  = 4 + Math.random() * 22;
+    state.feather = Math.random() * 60;
+    state.posX    = (Math.random() - 0.5) * 220;
+    state.posY    = (Math.random() - 0.5) * 240;
+    paletteIdx    = Math.floor(Math.random() * PALETTES.length);
+    applyPalette(PALETTES[paletteIdx]);
+    document.querySelectorAll('.swatch').forEach((s, j) =>
+      s.classList.toggle('active', j === paletteIdx));
+    DEFS.forEach(updateDial);
+    render();
+  });
+
+  applyText();
+  render();
+})();
+</script>
+</body>
+</html>
