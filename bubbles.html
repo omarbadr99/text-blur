@@ -43,28 +43,57 @@
     position: fixed;
     top: 18px; left: 0; right: 0;
     display: flex;
+    align-items: center;
     justify-content: center;
-    gap: 28px;
+    gap: 26px;
     pointer-events: none;
     z-index: 10;
     text-shadow: 0 2px 8px rgba(0,0,0,.8);
   }
-  .stat { font-size: clamp(18px, 3.5vw, 34px); font-weight: 700; }
-  .stat span { opacity: .65; font-weight: 500; font-size: .6em; }
+  .stat { font-size: clamp(16px, 3.2vw, 32px); font-weight: 700; }
+  .stat span { opacity: .65; font-weight: 500; font-size: .55em; display:block; }
 
-  /* Start / status overlay */
+  /* Intensity meter for the left "throttle" hand */
+  .meter { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  #meterTrack {
+    width: clamp(80px, 16vw, 160px); height: 12px;
+    background: rgba(255,255,255,.15); border-radius: 999px; overflow: hidden;
+  }
+  #meterFill {
+    display: block; height: 100%; width: 40%;
+    background: linear-gradient(90deg, #57e0c8, #ffd24d);
+    transition: width .08s linear;
+  }
+
+  /* Top-right controls (pause / swap) — outside the mirrored stage */
+  #controls {
+    position: fixed; top: 16px; right: 18px;
+    display: flex; gap: 10px; z-index: 12;
+  }
+  .iconbtn {
+    font: inherit; font-weight: 700; font-size: 15px;
+    color: #eaf2ff; background: rgba(20,26,44,.7);
+    border: 1px solid rgba(255,255,255,.18); border-radius: 12px;
+    padding: 9px 14px; cursor: pointer; backdrop-filter: blur(4px);
+  }
+  .iconbtn:hover { background: rgba(40,50,80,.85); }
+
+  /* Start / pause / end overlay */
   #overlay {
     position: fixed; inset: 0; z-index: 20;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    text-align: center; gap: 22px;
+    text-align: center; gap: 20px;
     background: radial-gradient(ellipse at center, rgba(10,14,28,.7), rgba(4,6,12,.95));
     backdrop-filter: blur(6px);
     padding: 24px;
   }
-  #overlay h1 { font-size: clamp(32px, 7vw, 64px); letter-spacing: -1px; }
-  #overlay p { max-width: 460px; line-height: 1.5; opacity: .85; font-size: clamp(14px,2.4vw,18px); }
-  button {
+  #overlay h1 { font-size: clamp(30px, 6.5vw, 60px); letter-spacing: -1px; }
+  #overlay p { max-width: 500px; line-height: 1.55; opacity: .9; font-size: clamp(14px,2.4vw,18px); }
+  .legend { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+  .legend div { max-width: 200px; font-size: clamp(13px,2.2vw,15px); opacity: .85; }
+  .legend b { display:block; font-size: 1.5em; }
+  button.primary {
     font: inherit; font-weight: 700; font-size: clamp(16px,3vw,22px);
     color: #06080f; background: #57e0c8;
     border: 0; border-radius: 999px;
@@ -72,7 +101,7 @@
     transition: transform .12s ease, box-shadow .12s ease;
     box-shadow: 0 8px 30px rgba(87,224,200,.35);
   }
-  button:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(87,224,200,.5); }
+  button.primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(87,224,200,.5); }
   .hidden { display: none !important; }
   .small { font-size: 13px; opacity: .55; }
 </style>
@@ -83,6 +112,15 @@
     <div class="stat"><span>SCORE</span> <b id="score">0</b></div>
     <div class="stat"><span>BEST</span> <b id="best">0</b></div>
     <div class="stat"><span>TIME</span> <b id="time">60</b></div>
+    <div class="stat meter">
+      <span>BUBBLES</span>
+      <div id="meterTrack"><i id="meterFill"></i></div>
+    </div>
+  </div>
+
+  <div id="controls" class="hidden">
+    <button class="iconbtn" id="swapBtn" title="Swap which hand pops">⇄ Swap hands</button>
+    <button class="iconbtn" id="pauseBtn" title="Pause (spacebar)">⏸ Pause</button>
   </div>
 
   <div id="stage">
@@ -92,10 +130,13 @@
 
   <div id="overlay">
     <h1>🫧 Bubble Pop</h1>
-    <p>Pop the bubbles with your <b>index finger</b>. Wave your hand in front of
-       your webcam and reach out to touch them — gold bubbles are worth more!</p>
-    <button id="startBtn">Allow camera &amp; play</button>
-    <p class="small">Everything runs in your browser. Your camera never leaves this page.</p>
+    <p>A two-handed webcam game. Gold bubbles are worth more!</p>
+    <div class="legend">
+      <div><b>👉</b> <b style="font-size:1em">Right hand</b> Pop bubbles with your index finger.</div>
+      <div><b>✋</b> <b style="font-size:1em">Left hand</b> Throttle: open palm = a blast of bubbles, closed fist = a trickle.</div>
+    </div>
+    <button class="primary" id="startBtn">Allow camera &amp; play</button>
+    <p class="small">Runs entirely in your browser — your camera never leaves this page. Press space to pause.</p>
   </div>
 
 <!-- MediaPipe Hands: Google's free in-browser hand-tracking model.
@@ -108,27 +149,41 @@
   "use strict";
 
   // ---- Elements -----------------------------------------------------------
-  const video   = document.getElementById("cam");
-  const canvas  = document.getElementById("game");
-  const ctx     = canvas.getContext("2d");
-  const overlay = document.getElementById("overlay");
-  const startBtn= document.getElementById("startBtn");
-  const scoreEl = document.getElementById("score");
-  const bestEl  = document.getElementById("best");
-  const timeEl  = document.getElementById("time");
+  const video    = document.getElementById("cam");
+  const canvas   = document.getElementById("game");
+  const ctx      = canvas.getContext("2d");
+  const overlay  = document.getElementById("overlay");
+  const startBtn = document.getElementById("startBtn");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const swapBtn  = document.getElementById("swapBtn");
+  const controls = document.getElementById("controls");
+  const scoreEl  = document.getElementById("score");
+  const bestEl   = document.getElementById("best");
+  const timeEl   = document.getElementById("time");
+  const meterFill= document.getElementById("meterFill");
+
+  // ---- Small math helpers -------------------------------------------------
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp  = (a, b, t) => a + (b - a) * t;
+  const dist  = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
+  const toPx  = (p) => ({ x: p.x * canvas.width, y: p.y * canvas.height });
 
   // ---- Game state ---------------------------------------------------------
   const ROUND_SECONDS = 60;
-  let bubbles   = [];      // active bubbles
-  let particles = [];      // pop splash particles
-  let fingers   = [];      // current fingertip positions (canvas pixels)
-  let prevFingers = [];    // last frame's fingertips (for swipe-pop feel)
-  let score     = 0;
-  let best      = Number(localStorage.getItem("bubblePopBest") || 0);
-  let timeLeft  = ROUND_SECONDS;
-  let running   = false;
-  let lastSpawn = 0;
-  let roundEndsAt = 0;
+  let bubbles    = [];     // active bubbles
+  let particles  = [];     // pop splash particles
+  let fingers    = [];     // popping fingertip positions (canvas pixels)
+  let controller = null;   // { x, y, openness } of the throttle hand, or null
+  let intensity  = 0.4;    // smoothed throttle 0..1 (drives spawn rate)
+  let targetInt  = 0.4;    // latest raw throttle from the left hand
+  let score      = 0;
+  let best       = Number(localStorage.getItem("bubblePopBest") || 0);
+  let timeLeft   = ROUND_SECONDS;
+  let running    = false;
+  let paused     = false;
+  let swapHands  = false;  // flip handedness if the camera reads backwards
+  let lastSpawn  = 0;
+  let roundEndsAt= 0;
 
   bestEl.textContent = best;
 
@@ -169,8 +224,7 @@
     score += b.kind.pts;
     scoreEl.textContent = score;
     b.pop = 1;
-    // splash particles in the bubble's colour
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 14; i++) {          // splash particles
       const a = Math.random() * Math.PI * 2;
       const sp = 1 + Math.random() * 4;
       particles.push({
@@ -198,9 +252,24 @@
     } catch (_) {}
   }
 
+  // ---- Hand "openness" ----------------------------------------------------
+  // How spread out is the hand? Average fingertip distance from the wrist,
+  // scaled by palm size so it works near or far from the camera.
+  // ~closed fist -> small ratio, ~open palm -> large ratio. Mapped to 0..1.
+  function handOpenness(lm) {
+    const wrist = lm[0], midMcp = lm[9];
+    const palm = dist(wrist, midMcp) || 1e-4;          // reference hand scale
+    const tips = [8, 12, 16, 20];                       // index..pinky tips
+    let sum = 0;
+    for (const t of tips) sum += dist(wrist, lm[t]);
+    const ratio = (sum / tips.length) / palm;
+    return clamp((ratio - 1.45) / (2.35 - 1.45), 0, 1); // tuned empirically
+  }
+
   // ---- Hand tracking ------------------------------------------------------
-  // MediaPipe gives us 21 landmarks per hand. #8 is the index FINGERTIP.
-  // Coords are 0..1, so we multiply by canvas size to get pixels.
+  // MediaPipe gives 21 landmarks per hand plus a "Left"/"Right" label.
+  // #8 is the index FINGERTIP. We assign the popping hand vs the throttle
+  // hand from the handedness label (with an optional manual swap).
   const hands = new Hands({
     locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`,
   });
@@ -211,17 +280,33 @@
     minTrackingConfidence: 0.6,
   });
   hands.onResults((res) => {
-    prevFingers = fingers;
+    const lms     = res.multiHandLandmarks || [];
+    const handed  = res.multiHandedness   || [];
     fingers = [];
-    if (res.multiHandLandmarks) {
-      for (const lm of res.multiHandLandmarks) {
-        const tip = lm[8];               // index fingertip
-        fingers.push({ x: tip.x * canvas.width, y: tip.y * canvas.height });
+    let ctrl = null;
+
+    if (lms.length === 1) {
+      // One hand on screen: just let it pop, so one-handed play still works.
+      fingers.push(toPx(lms[0][8]));
+    } else {
+      for (let i = 0; i < lms.length; i++) {
+        let label = handed[i] ? handed[i].label : "Right";
+        if (swapHands) label = label === "Left" ? "Right" : "Left";
+        if (label === "Right") {
+          fingers.push(toPx(lms[i][8]));            // popper: index fingertip
+        } else {
+          const palm = toPx(lms[i][9]);             // throttle: palm centre
+          ctrl = { x: palm.x, y: palm.y, openness: handOpenness(lms[i]) };
+        }
       }
     }
+
+    controller = ctrl;
+    if (ctrl) targetInt = ctrl.openness;            // left hand drives spawn rate
+    else if (lms.length <= 1) targetInt = 0.4;      // default medium when no throttle
   });
 
-  // ---- Collision: did a fingertip touch a bubble this frame? --------------
+  // ---- Collision: did a popping fingertip touch a bubble this frame? ------
   function fingerHits(b) {
     for (let i = 0; i < fingers.length; i++) {
       const f = fingers[i];
@@ -236,41 +321,63 @@
     if (!running) return;
     requestAnimationFrame(tick);
 
+    // While paused: freeze everything, just re-draw the frozen scene + banner.
+    if (paused) { renderScene(false); drawPausedBanner(); return; }
+
     // Countdown timer
     timeLeft = Math.max(0, Math.ceil((roundEndsAt - now) / 1000));
     timeEl.textContent = timeLeft;
     if (now >= roundEndsAt) return endRound();
 
-    // Spawn rate speeds up over the round
-    const elapsed = ROUND_SECONDS - timeLeft;
-    const interval = Math.max(380, 900 - elapsed * 9);
-    if (now - lastSpawn > interval) { spawnBubble(); lastSpawn = now; }
+    // Smooth the throttle so the spawn rate eases rather than snaps.
+    intensity += (targetInt - intensity) * 0.08;
+    meterFill.style.width = (intensity * 100).toFixed(0) + "%";
 
+    // Spawn rate + burst size are driven by the left hand's openness.
+    const interval = lerp(1100, 200, intensity);   // open hand = shorter gap
+    if (now - lastSpawn > interval) {
+      const count = 1 + Math.round(intensity * 2); // open hand = a blast
+      for (let i = 0; i < count; i++) spawnBubble();
+      lastSpawn = now;
+    }
+
+    renderScene(true);
+  }
+
+  // Draw (and optionally advance) bubbles, particles, cursors, throttle hand.
+  function renderScene(advance) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Update + draw bubbles
     for (const b of bubbles) {
-      if (b.pop > 0) { b.pop += 0.12; continue; }
-      b.phase += 0.05;
-      b.x += Math.sin(b.phase) * b.drift;
-      b.y += b.vy;
-      if (!b.popped && fingerHits(b)) { b.popped = true; popBubble(b); }
+      if (b.pop > 0) { if (advance) b.pop += 0.12; drawBubble(b); continue; }
+      if (advance) {
+        b.phase += 0.05;
+        b.x += Math.sin(b.phase) * b.drift;
+        b.y += b.vy;
+        if (!b.popped && fingerHits(b)) { b.popped = true; popBubble(b); }
+      }
       drawBubble(b);
     }
-    // Remove popped/off-screen bubbles
-    bubbles = bubbles.filter((b) => b.pop < 1.6 && b.y > -b.r - 10);
+    if (advance) bubbles = bubbles.filter((b) => b.pop < 1.6 && b.y > -b.r - 10);
 
-    // Particles
     for (const p of particles) {
-      p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.03;
+      if (advance) { p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.03; }
       if (p.life > 0) {
         ctx.fillStyle = `${p.color},${p.life})`;
         ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
       }
     }
-    particles = particles.filter((p) => p.life > 0);
+    if (advance) particles = particles.filter((p) => p.life > 0);
 
-    // Draw fingertip cursors so the player sees where they are
+    // Throttle hand indicator: a ring that grows as the hand opens.
+    if (controller) {
+      const rr = 22 + controller.openness * 46;
+      ctx.beginPath(); ctx.arc(controller.x, controller.y, rr, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255,210,77,${0.35 + controller.openness * 0.5})`;
+      ctx.lineWidth = 4; ctx.stroke();
+    }
+
+    // Popping fingertip cursors
     for (const f of fingers) {
       ctx.beginPath(); ctx.arc(f.x, f.y, 14, 0, Math.PI * 2);
       ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 3; ctx.stroke();
@@ -294,26 +401,63 @@
     ctx.strokeStyle = `${b.kind.ring},${alpha})`;
     ctx.stroke();
 
-    // little highlight glint
-    ctx.beginPath();
+    ctx.beginPath();                                  // little highlight glint
     ctx.arc(b.x - r*0.35, b.y - r*0.35, r*0.18, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(255,255,255,${alpha*0.7})`; ctx.fill();
   }
+
+  function drawPausedBanner() {
+    ctx.save();
+    ctx.fillStyle = "rgba(4,6,12,.55)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.scale(-1, 1);                                 // un-mirror so text reads
+    ctx.fillStyle = "#eaf2ff";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "700 " + Math.round(canvas.height * 0.09) + "px system-ui, sans-serif";
+    ctx.fillText("Paused", 0, 0);
+    ctx.font = "500 " + Math.round(canvas.height * 0.035) + "px system-ui, sans-serif";
+    ctx.fillText("press space or ▶ to resume", 0, canvas.height * 0.08);
+    ctx.restore();
+  }
+
+  // ---- Pause --------------------------------------------------------------
+  function togglePause() {
+    if (!running) return;
+    paused = !paused;
+    pauseBtn.textContent = paused ? "▶ Resume" : "⏸ Pause";
+    if (!paused) {
+      // Shift deadlines forward so paused time doesn't count against the round.
+      const now = performance.now();
+      const remaining = timeLeft * 1000;
+      roundEndsAt = now + remaining;
+      lastSpawn = now;
+    }
+  }
+  pauseBtn.addEventListener("click", togglePause);
+  swapBtn.addEventListener("click", () => { swapHands = !swapHands; });
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space" || e.key.toLowerCase() === "p") { e.preventDefault(); togglePause(); }
+  });
 
   // ---- Round control ------------------------------------------------------
   function startRound() {
     score = 0; timeLeft = ROUND_SECONDS;
     bubbles = []; particles = [];
+    intensity = targetInt = 0.4;
+    paused = false; pauseBtn.textContent = "⏸ Pause";
     scoreEl.textContent = "0";
     running = true;
     lastSpawn = performance.now();
     roundEndsAt = performance.now() + ROUND_SECONDS * 1000;
     overlay.classList.add("hidden");
+    controls.classList.remove("hidden");
     requestAnimationFrame(tick);
   }
 
   function endRound() {
     running = false;
+    controls.classList.add("hidden");
     if (score > best) {
       best = score;
       localStorage.setItem("bubblePopBest", best);
@@ -323,6 +467,7 @@
     overlay.querySelector("p").innerHTML =
       `You popped <b>${score}</b> points worth of bubbles.` +
       (score >= best ? " 🏆 New best!" : ` Best: ${best}.`);
+    overlay.querySelector(".legend").classList.add("hidden");
     startBtn.textContent = "Play again";
     overlay.classList.remove("hidden");
   }
@@ -340,8 +485,7 @@
       await video.play();
       fitCanvas();
 
-      // Camera helper feeds each webcam frame into the hand model.
-      camera = new Camera(video, {
+      camera = new Camera(video, {                    // feeds frames to the model
         onFrame: async () => { await hands.send({ image: video }); },
         width: 1280, height: 720,
       });
@@ -359,7 +503,7 @@
   }
 
   startBtn.addEventListener("click", () => {
-    if (!camera) boot(); else startRound();   // first click boots, later clicks replay
+    if (!camera) boot(); else startRound();           // first click boots, later clicks replay
   });
 })();
 </script>
