@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bubble Pop — Hand Tracking Game</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #06080f;
+    color: #eaf2ff;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* The whole game lives in this frame. We mirror it so it feels like a
+     mirror: move your hand right, your hand on screen moves right. */
+  #stage {
+    position: relative;
+    width: min(100vw, 177.7vh);   /* keep a 16:9 box */
+    aspect-ratio: 16 / 9;
+    transform: scaleX(-1);        /* mirror video + canvas together */
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  video, canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  video { filter: brightness(0.65) saturate(0.9); }  /* dim cam so bubbles pop */
+
+  /* HUD is NOT mirrored, so text reads normally. It sits above the stage. */
+  #hud {
+    position: fixed;
+    top: 18px; left: 0; right: 0;
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    pointer-events: none;
+    z-index: 10;
+    text-shadow: 0 2px 8px rgba(0,0,0,.8);
+  }
+  .stat { font-size: clamp(18px, 3.5vw, 34px); font-weight: 700; }
+  .stat span { opacity: .65; font-weight: 500; font-size: .6em; }
+
+  /* Start / status overlay */
+  #overlay {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; gap: 22px;
+    background: radial-gradient(ellipse at center, rgba(10,14,28,.7), rgba(4,6,12,.95));
+    backdrop-filter: blur(6px);
+    padding: 24px;
+  }
+  #overlay h1 { font-size: clamp(32px, 7vw, 64px); letter-spacing: -1px; }
+  #overlay p { max-width: 460px; line-height: 1.5; opacity: .85; font-size: clamp(14px,2.4vw,18px); }
+  button {
+    font: inherit; font-weight: 700; font-size: clamp(16px,3vw,22px);
+    color: #06080f; background: #57e0c8;
+    border: 0; border-radius: 999px;
+    padding: 14px 34px; cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease;
+    box-shadow: 0 8px 30px rgba(87,224,200,.35);
+  }
+  button:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(87,224,200,.5); }
+  .hidden { display: none !important; }
+  .small { font-size: 13px; opacity: .55; }
+</style>
+</head>
+<body>
+
+  <div id="hud">
+    <div class="stat"><span>SCORE</span> <b id="score">0</b></div>
+    <div class="stat"><span>BEST</span> <b id="best">0</b></div>
+    <div class="stat"><span>TIME</span> <b id="time">60</b></div>
+  </div>
+
+  <div id="stage">
+    <video id="cam" playsinline></video>
+    <canvas id="game"></canvas>
+  </div>
+
+  <div id="overlay">
+    <h1>🫧 Bubble Pop</h1>
+    <p>Pop the bubbles with your <b>index finger</b>. Wave your hand in front of
+       your webcam and reach out to touch them — gold bubbles are worth more!</p>
+    <button id="startBtn">Allow camera &amp; play</button>
+    <p class="small">Everything runs in your browser. Your camera never leaves this page.</p>
+  </div>
+
+<!-- MediaPipe Hands: Google's free in-browser hand-tracking model.
+     Loaded straight from a CDN, just like a normal script. No install. -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---- Elements -----------------------------------------------------------
+  const video   = document.getElementById("cam");
+  const canvas  = document.getElementById("game");
+  const ctx     = canvas.getContext("2d");
+  const overlay = document.getElementById("overlay");
+  const startBtn= document.getElementById("startBtn");
+  const scoreEl = document.getElementById("score");
+  const bestEl  = document.getElementById("best");
+  const timeEl  = document.getElementById("time");
+
+  // ---- Game state ---------------------------------------------------------
+  const ROUND_SECONDS = 60;
+  let bubbles   = [];      // active bubbles
+  let particles = [];      // pop splash particles
+  let fingers   = [];      // current fingertip positions (canvas pixels)
+  let prevFingers = [];    // last frame's fingertips (for swipe-pop feel)
+  let score     = 0;
+  let best      = Number(localStorage.getItem("bubblePopBest") || 0);
+  let timeLeft  = ROUND_SECONDS;
+  let running   = false;
+  let lastSpawn = 0;
+  let roundEndsAt = 0;
+
+  bestEl.textContent = best;
+
+  // Canvas resolution follows the displayed size for crisp drawing.
+  function fitCanvas() {
+    const r = canvas.getBoundingClientRect();
+    canvas.width  = Math.round(r.width);
+    canvas.height = Math.round(r.height);
+  }
+  window.addEventListener("resize", fitCanvas);
+
+  // ---- Bubbles ------------------------------------------------------------
+  const PALETTE = [
+    { fill: "rgba(120,200,255", ring: "rgba(200,240,255", pts: 1 },
+    { fill: "rgba(180,130,255", ring: "rgba(230,200,255", pts: 1 },
+    { fill: "rgba(120,255,190", ring: "rgba(210,255,235", pts: 1 },
+    { fill: "rgba(255,140,180", ring: "rgba(255,210,225", pts: 1 },
+    { fill: "rgba(255,205,80",  ring: "rgba(255,240,190", pts: 3 }, // gold = bonus
+  ];
+
+  function spawnBubble() {
+    const goldChance = Math.random() < 0.15;
+    const kind = goldChance ? PALETTE[4] : PALETTE[(Math.random() * 4) | 0];
+    const r = 26 + Math.random() * 44;
+    bubbles.push({
+      x: r + Math.random() * (canvas.width - r * 2),
+      y: canvas.height + r,                 // start just below the screen
+      r,
+      vy: -(40 + Math.random() * 70) / 60,  // float upward (px per frame)
+      drift: (Math.random() - 0.5) * 0.6,   // gentle sideways sway speed
+      phase: Math.random() * Math.PI * 2,
+      kind,
+      pop: 0,                               // >0 while playing pop animation
+    });
+  }
+
+  function popBubble(b) {
+    score += b.kind.pts;
+    scoreEl.textContent = score;
+    b.pop = 1;
+    // splash particles in the bubble's colour
+    for (let i = 0; i < 14; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 1 + Math.random() * 4;
+      particles.push({
+        x: b.x, y: b.y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 1, color: b.kind.fill,
+      });
+    }
+    beep(b.kind.pts > 1 ? 880 : 560);
+  }
+
+  // ---- Tiny sound (WebAudio, no files) -----------------------------------
+  let audioCtx;
+  function beep(freq) {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "sine"; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.2, audioCtx.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.18);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + 0.2);
+    } catch (_) {}
+  }
+
+  // ---- Hand tracking ------------------------------------------------------
+  // MediaPipe gives us 21 landmarks per hand. #8 is the index FINGERTIP.
+  // Coords are 0..1, so we multiply by canvas size to get pixels.
+  const hands = new Hands({
+    locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`,
+  });
+  hands.setOptions({
+    maxNumHands: 2,
+    modelComplexity: 0,        // 0 = fastest, great for a game
+    minDetectionConfidence: 0.6,
+    minTrackingConfidence: 0.6,
+  });
+  hands.onResults((res) => {
+    prevFingers = fingers;
+    fingers = [];
+    if (res.multiHandLandmarks) {
+      for (const lm of res.multiHandLandmarks) {
+        const tip = lm[8];               // index fingertip
+        fingers.push({ x: tip.x * canvas.width, y: tip.y * canvas.height });
+      }
+    }
+  });
+
+  // ---- Collision: did a fingertip touch a bubble this frame? --------------
+  function fingerHits(b) {
+    for (let i = 0; i < fingers.length; i++) {
+      const f = fingers[i];
+      const dx = f.x - b.x, dy = f.y - b.y;
+      if (dx * dx + dy * dy <= (b.r + 18) * (b.r + 18)) return true;
+    }
+    return false;
+  }
+
+  // ---- Main loop ----------------------------------------------------------
+  function tick(now) {
+    if (!running) return;
+    requestAnimationFrame(tick);
+
+    // Countdown timer
+    timeLeft = Math.max(0, Math.ceil((roundEndsAt - now) / 1000));
+    timeEl.textContent = timeLeft;
+    if (now >= roundEndsAt) return endRound();
+
+    // Spawn rate speeds up over the round
+    const elapsed = ROUND_SECONDS - timeLeft;
+    const interval = Math.max(380, 900 - elapsed * 9);
+    if (now - lastSpawn > interval) { spawnBubble(); lastSpawn = now; }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Update + draw bubbles
+    for (const b of bubbles) {
+      if (b.pop > 0) { b.pop += 0.12; continue; }
+      b.phase += 0.05;
+      b.x += Math.sin(b.phase) * b.drift;
+      b.y += b.vy;
+      if (!b.popped && fingerHits(b)) { b.popped = true; popBubble(b); }
+      drawBubble(b);
+    }
+    // Remove popped/off-screen bubbles
+    bubbles = bubbles.filter((b) => b.pop < 1.6 && b.y > -b.r - 10);
+
+    // Particles
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life -= 0.03;
+      if (p.life > 0) {
+        ctx.fillStyle = `${p.color},${p.life})`;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    particles = particles.filter((p) => p.life > 0);
+
+    // Draw fingertip cursors so the player sees where they are
+    for (const f of fingers) {
+      ctx.beginPath(); ctx.arc(f.x, f.y, 14, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.lineWidth = 3; ctx.stroke();
+      ctx.beginPath(); ctx.arc(f.x, f.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff"; ctx.fill();
+    }
+  }
+
+  function drawBubble(b) {
+    const popScale = b.pop > 0 ? 1 + b.pop * 0.8 : 1;
+    const alpha    = b.pop > 0 ? Math.max(0, 1 - b.pop) : 0.85;
+    const r = b.r * popScale;
+
+    const grad = ctx.createRadialGradient(b.x - r*0.3, b.y - r*0.3, r*0.1, b.x, b.y, r);
+    grad.addColorStop(0, `${b.kind.ring},${alpha})`);
+    grad.addColorStop(1, `${b.kind.fill},${alpha*0.35})`);
+    ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = grad; ctx.fill();
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `${b.kind.ring},${alpha})`;
+    ctx.stroke();
+
+    // little highlight glint
+    ctx.beginPath();
+    ctx.arc(b.x - r*0.35, b.y - r*0.35, r*0.18, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${alpha*0.7})`; ctx.fill();
+  }
+
+  // ---- Round control ------------------------------------------------------
+  function startRound() {
+    score = 0; timeLeft = ROUND_SECONDS;
+    bubbles = []; particles = [];
+    scoreEl.textContent = "0";
+    running = true;
+    lastSpawn = performance.now();
+    roundEndsAt = performance.now() + ROUND_SECONDS * 1000;
+    overlay.classList.add("hidden");
+    requestAnimationFrame(tick);
+  }
+
+  function endRound() {
+    running = false;
+    if (score > best) {
+      best = score;
+      localStorage.setItem("bubblePopBest", best);
+      bestEl.textContent = best;
+    }
+    overlay.querySelector("h1").textContent = "⏱ Time!";
+    overlay.querySelector("p").innerHTML =
+      `You popped <b>${score}</b> points worth of bubbles.` +
+      (score >= best ? " 🏆 New best!" : ` Best: ${best}.`);
+    startBtn.textContent = "Play again";
+    overlay.classList.remove("hidden");
+  }
+
+  // ---- Boot: ask for camera, start MediaPipe ------------------------------
+  let camera;
+  async function boot() {
+    startBtn.disabled = true;
+    startBtn.textContent = "Loading…";
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: 1280, height: 720 }, audio: false,
+      });
+      video.srcObject = stream;
+      await video.play();
+      fitCanvas();
+
+      // Camera helper feeds each webcam frame into the hand model.
+      camera = new Camera(video, {
+        onFrame: async () => { await hands.send({ image: video }); },
+        width: 1280, height: 720,
+      });
+      camera.start();
+
+      startBtn.disabled = false;
+      startRound();
+    } catch (err) {
+      startBtn.disabled = false;
+      startBtn.textContent = "Allow camera & play";
+      overlay.querySelector("p").textContent =
+        "Couldn't access the camera: " + err.message +
+        ". Make sure you're on https:// or localhost and allow camera access.";
+    }
+  }
+
+  startBtn.addEventListener("click", () => {
+    if (!camera) boot(); else startRound();   // first click boots, later clicks replay
+  });
+})();
+</script>
+</body>
+</html>
