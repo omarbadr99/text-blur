@@ -46,6 +46,14 @@
     font-size: 15px; font-weight: 600; color: var(--ink); background: var(--field); outline: none;
   }
   input[type="text"].textInput:focus { border-color: var(--accent); }
+  select.textInput {
+    width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    font-size: 14px; font-weight: 600; color: var(--ink); background: var(--field);
+    outline: none; cursor: pointer; appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+  }
+  select.textInput:focus { border-color: var(--accent); }
   .colorRow { display: flex; align-items: center; gap: 10px; }
   input[type="color"] { width: 38px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 9px; background: none; cursor: pointer; }
   .colorRow .hex { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -94,6 +102,17 @@
     <div class="group">
       <label class="cap" for="textInput">Text</label>
       <input id="textInput" class="textInput" type="text" value="Nocaff" maxlength="24" autocomplete="off" spellcheck="false"/>
+    </div>
+
+    <div class="group">
+      <label class="cap" for="fontSelect">Font</label>
+      <select id="fontSelect" class="textInput"></select>
+      <div class="row">
+        <button class="btn" id="loadFonts">Use my computer’s fonts</button>
+        <button class="btn" id="uploadFont">Upload…</button>
+      </div>
+      <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2,font/*" hidden/>
+      <div class="fileName" id="fontNote">Heavy / bold fonts melt best.</div>
     </div>
 
     <div class="group">
@@ -149,7 +168,7 @@
   const THR = 0.34;                     // metaball threshold (low enough that blobs stay solid as they merge)
 
   const state = {
-    text: 'Nocaff', textColor: '#1c1714',
+    text: 'Nocaff', textColor: '#1c1714', fontFamily: 'Arial Black',
     posX: 0, posY: 0, amount: 8, feather: 18,
     bgMode: 'none', bgColor: '#e2580f', bgImage: null,
     play: false,
@@ -179,6 +198,7 @@
     return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
   }
   const featherEdge = () => 0.02 + (state.feather / 100) * 0.30; // half-width of the alpha ramp
+  const fontString = (px) => `900 ${px}px "${state.fontFamily}", 'Helvetica Neue', Helvetica, Arial, sans-serif`;
 
   // ---------- value noise (for the liquid wobble) ----------
   const GW = 26, GH = 32, NCELL = FW / GW;
@@ -203,7 +223,7 @@
     octx.scale(FIELD, FIELD);            // draw in VB coords
     octx.fillStyle = '#fff';
     octx.textAlign = 'center'; octx.textBaseline = 'middle';
-    octx.font = "900 150px 'Arial Black','Helvetica Neue',Helvetica,Arial,sans-serif";
+    octx.font = fontString(150);
     try { octx.letterSpacing = '-6px'; } catch (e) {}
     octx.fillText(state.text || ' ', 400 + state.posX, 500 + state.posY);
     octx.restore();
@@ -411,7 +431,7 @@
     const octx2 = oc.getContext('2d');
     octx2.scale(SC, SC);
     octx2.fillStyle = '#fff'; octx2.textAlign = 'center'; octx2.textBaseline = 'middle';
-    octx2.font = "900 150px 'Arial Black','Helvetica Neue',Helvetica,Arial,sans-serif";
+    octx2.font = fontString(150);
     try { octx2.letterSpacing = '-6px'; } catch (e) {}
     octx2.fillText(state.text || ' ', 400 + state.posX, 500 + state.posY);
     const Ac = new Float32Array(fw * fh), data = octx2.getImageData(0, 0, fw, fh).data;
@@ -454,6 +474,67 @@
   DEFS.forEach((def) => { dialBox.appendChild(buildDial(def)); updateDial(def); setupDial(def); });
 
   $('#textInput').addEventListener('input', (e) => { state.text = e.target.value; rebuildField(); if (!running) drawStatic(); });
+
+  // ----- Font selection -----
+  const fontSelect = $('#fontSelect'), fontNote = $('#fontNote');
+  const BASE_FONTS = ['Arial Black', 'Impact', 'Helvetica', 'Arial', 'Verdana',
+    'Trebuchet MS', 'Georgia', 'Times New Roman', 'Courier New', 'Comic Sans MS', 'system-ui'];
+  const knownFonts = new Set();
+  function addFontOption(fam, select) {
+    if (knownFonts.has(fam)) { if (select) fontSelect.value = fam; return; }
+    knownFonts.add(fam);
+    const o = document.createElement('option');
+    o.value = fam; o.textContent = fam;
+    try { o.style.fontFamily = `"${fam}"`; } catch (e) {}
+    fontSelect.appendChild(o);
+    if (select) fontSelect.value = fam;
+  }
+  BASE_FONTS.forEach((f) => addFontOption(f));
+  fontSelect.value = state.fontFamily;
+
+  function useFont(fam) {
+    state.fontFamily = fam;
+    rebuildField(); if (!running) drawStatic();                 // immediate (may fall back for a frame)
+    if (document.fonts && document.fonts.load) {                // re-render once the face is ready
+      document.fonts.load(fontString(150), state.text || 'Ag')
+        .then(() => { rebuildField(); if (!running) drawStatic(); }).catch(() => {});
+    }
+  }
+  fontSelect.addEventListener('change', (e) => useFont(e.target.value));
+
+  // Pull in the fonts installed on this computer (Chromium + secure context only)
+  $('#loadFonts').addEventListener('click', async () => {
+    if (!window.queryLocalFonts) {
+      fontNote.textContent = 'Your browser can’t list local fonts — use Upload… instead (works everywhere). Chrome or Edge can list them.';
+      return;
+    }
+    try {
+      const fonts = await window.queryLocalFonts();
+      const fams = [...new Set(fonts.map((f) => f.family))].sort((a, b) => a.localeCompare(b));
+      fams.forEach((f) => addFontOption(f));
+      fontNote.textContent = `Loaded ${fams.length} fonts from your computer. Heavy / bold fonts melt best.`;
+    } catch (err) {
+      fontNote.textContent = 'Permission denied — allow local font access, or use Upload… instead.';
+    }
+  });
+
+  // Upload a font file (works in every browser)
+  let customFontN = 0;
+  $('#uploadFont').addEventListener('click', () => $('#fontFile').click());
+  $('#fontFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const buf = await file.arrayBuffer();
+      const fam = file.name.replace(/\.[^.]+$/, '') || ('Custom ' + (++customFontN));
+      const face = new FontFace(fam, buf);
+      await face.load(); document.fonts.add(face);
+      addFontOption(fam, true);
+      fontNote.textContent = `Loaded “${fam}”.`;
+      useFont(fam);
+    } catch (err) {
+      fontNote.textContent = 'Could not load that font file (try .ttf, .otf or .woff).';
+    }
+  });
   $('#textColor').addEventListener('input', (e) => { state.textColor = e.target.value; $('#textHex').textContent = e.target.value; buildBase(); if (!running) drawStatic(); });
 
   $('#bgSeg').addEventListener('click', (e) => {

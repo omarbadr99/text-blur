@@ -15,6 +15,7 @@ Just open `index.html` in any modern browser. There is no build step.
 | Control | What it does |
 | --- | --- |
 | **Text** | The word to render |
+| **Font** | A built-in list of common fonts, plus **Use my computer's fonts** (lists every font installed locally — Chrome/Edge only, asks permission once) and **Upload…** (load a `.ttf`/`.otf`/`.woff` file, works in any browser). Heavy/bold fonts melt best |
 | **Text colour** | Fill colour of the wordmark |
 | **Background** | **None** (transparent, the default) · **Colour** (solid fill) · **Image** (upload your own) |
 | **Position X / Y** | Figma-style number fields to place the wordmark |
