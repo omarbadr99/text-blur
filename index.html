@@ -278,9 +278,9 @@
     const { r, g, b } = parseColor(state.textColor);
     const e = featherEdge(), thr = THR, melt = !state.play; // Play off => whole word melts
     for (let i = 0; i < W * H; i++) {
-      // Play on rest state is TRUE vector text (raw glyph coverage, native AA);
-      // Play off shows the fully merged metaball.
-      const a = (melt ? smoothstep(thr - e, thr + e, Ablur[i]) : Acrisp[i]) * 255;
+      // Solid, opaque shape via threshold. Play on rest = threshold(crisp glyph);
+      // Play off = threshold(merged/blurred field).
+      const a = smoothstep(thr - e, thr + e, melt ? Ablur[i] : Acrisp[i]) * 255;
       const o = i * 4; baseRGBA[o] = r; baseRGBA[o + 1] = g; baseRGBA[o + 2] = b; baseRGBA[o + 3] = a;
     }
   }
@@ -355,14 +355,13 @@
         const f = 1 - q, m = s * f * f;       // smooth finite-support influence (no exp)
         if (m < 0.004) continue;             // rest pixel already restored to vector text
         const i = rowi + x;
-        // ONE morphing shape: coverage grows from crisp glyph toward the blurred
-        // (merged) field by m, with a little wobble. We only vary the edge
-        // *sharpness* by m (crisp vector at m=0 -> hard metaball edge at m=1),
-        // so there is no cross-fade between two shapes and thus no lens/mask disc.
+        // ONE morphing shape: coverage grows from the crisp glyph toward the
+        // blurred (merged) field by m, with a little wobble, then a single
+        // threshold -> solid opaque fill with a crisp edge (no transparent halo,
+        // no cross-fade between shapes => no mask/lens).
         let cov = Acrisp[i] + (Ablur[i] - Acrisp[i]) * m;
         cov += (sampleNoise(x + nox, y + noy) - 0.5) * NOISE_AMP * m;
-        const th = smoothstep(thr - e, thr + e, cov);
-        const a = (cov + (th - cov) * m) * 255;   // mix(coverage, threshold) by m
+        const a = smoothstep(thr - e, thr + e, cov) * 255;
         const o = i * 4; wd[o] = r; wd[o + 1] = g; wd[o + 2] = b; wd[o + 3] = a;
       }
     }
@@ -472,7 +471,7 @@
     const e = featherEdge(), thr = THR, melt = !state.play;
     const img = octx2.createImageData(fw, fh), od = img.data;
     for (let i = 0; i < fw * fh; i++) {
-      const a = (melt ? smoothstep(thr - e, thr + e, Ab[i]) : Ac[i]) * 255; // Play on => crisp vector
+      const a = smoothstep(thr - e, thr + e, melt ? Ab[i] : Ac[i]) * 255; // solid threshold
       const o = i * 4; od[o] = cr; od[o + 1] = cg; od[o + 2] = cb; od[o + 3] = a;
     }
     const txt = document.createElement('canvas'); txt.width = fw; txt.height = fh;
