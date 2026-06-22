@@ -162,10 +162,9 @@
 (() => {
   const $ = (s) => document.querySelector(s);
 
-  const VB_W = 800, VB_H = 1000;       // logical design space
-  const FIELD = 1.25;                   // field resolution scale (perf vs sharpness)
-  const FW = Math.round(VB_W * FIELD), FH = Math.round(VB_H * FIELD);
+  const VB_W = 800, VB_H = 1000;       // logical design space (aspect ratio)
   const THR = 0.34;                     // metaball threshold (low enough that blobs stay solid as they merge)
+  const MAXW = 1600;                    // cap on the device-pixel field width
 
   const state = {
     text: 'Nocaff', textColor: '#1c1714', fontFamily: 'Arial Black',
@@ -174,21 +173,30 @@
     play: false,
   };
 
-  const canvas = $('#canvas'); canvas.width = FW; canvas.height = FH;
+  const canvas = $('#canvas');
   const ctx = canvas.getContext('2d');
-  const textCanvas = document.createElement('canvas'); textCanvas.width = FW; textCanvas.height = FH;
+  const textCanvas = document.createElement('canvas');
   const tctx = textCanvas.getContext('2d');
-  const bgCanvas = document.createElement('canvas'); bgCanvas.width = FW; bgCanvas.height = FH;
+  const bgCanvas = document.createElement('canvas');
   const bgctx = bgCanvas.getContext('2d');
-  const offTxt = document.createElement('canvas'); offTxt.width = FW; offTxt.height = FH;
+  const offTxt = document.createElement('canvas');
   const octx = offTxt.getContext('2d');
 
-  // field buffers
-  let Acrisp = new Float32Array(FW * FH);   // crisp glyph coverage 0..1
-  let Ablur  = new Float32Array(FW * FH);   // blurred coverage (drives merging)
-  let baseRGBA = new Uint8ClampedArray(FW * FH * 4); // rest-state pixels
-  const work = new Uint8ClampedArray(FW * FH * 4);
-  const textImage = tctx.createImageData(FW, FH);
+  // resolution + buffers (allocated by resize() to match the on-screen device-pixel size)
+  let W = 0, H = 0, SCALE = 1;                    // SCALE: device px per VB unit
+  let Acrisp, Ablur, baseRGBA, textImage;
+
+  function allocate(w, h) {
+    W = w; H = h; SCALE = W / VB_W;
+    canvas.width = W; canvas.height = H;
+    textCanvas.width = W; textCanvas.height = H;
+    bgCanvas.width = W; bgCanvas.height = H;
+    offTxt.width = W; offTxt.height = H;
+    Acrisp = new Float32Array(W * H);
+    Ablur = new Float32Array(W * H);
+    baseRGBA = new Uint8ClampedArray(W * H * 4);
+    textImage = tctx.createImageData(W, H);
+  }
 
   // ---------- helpers ----------
   const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
@@ -201,7 +209,8 @@
   const fontString = (px) => `900 ${px}px "${state.fontFamily}", 'Helvetica Neue', Helvetica, Arial, sans-serif`;
 
   // ---------- value noise (for the liquid wobble) ----------
-  const GW = 26, GH = 32, NCELL = FW / GW;
+  const GW = 26, GH = 32;
+  let NCELL = W / GW;
   const ng = new Float32Array(GW * GH);
   for (let i = 0; i < ng.length; i++) ng[i] = Math.random();
   function sampleNoise(u, v) {
@@ -218,17 +227,17 @@
   // ---------- field precompute ----------
   function renderTextAlpha() {
     octx.setTransform(1, 0, 0, 1, 0, 0);
-    octx.clearRect(0, 0, FW, FH);
+    octx.clearRect(0, 0, W, H);
     octx.save();
-    octx.scale(FIELD, FIELD);            // draw in VB coords
+    octx.scale(SCALE, SCALE);            // draw in VB coords at device resolution
     octx.fillStyle = '#fff';
     octx.textAlign = 'center'; octx.textBaseline = 'middle';
     octx.font = fontString(150);
     try { octx.letterSpacing = '-6px'; } catch (e) {}
     octx.fillText(state.text || ' ', 400 + state.posX, 500 + state.posY);
     octx.restore();
-    const d = octx.getImageData(0, 0, FW, FH).data;
-    for (let i = 0; i < FW * FH; i++) Acrisp[i] = d[i * 4 + 3] / 255;
+    const d = octx.getImageData(0, 0, W, H).data;
+    for (let i = 0; i < W * H; i++) Acrisp[i] = d[i * 4 + 3] / 255;
   }
 
   function boxPassH(src, dst, w, h, r) {
@@ -258,21 +267,20 @@
     }
   }
   function computeBlur() {
-    const r = Math.round(state.amount * FIELD);
+    const r = Math.round(state.amount * SCALE);
     if (r < 1) { Ablur.set(Acrisp); return; }
-    let a = Float32Array.from(Acrisp), b = new Float32Array(FW * FH);
-    for (let p = 0; p < 3; p++) { boxPassH(a, b, FW, FH, r); boxPassV(b, a, FW, FH, r); }
+    let a = Float32Array.from(Acrisp), b = new Float32Array(W * H);
+    for (let p = 0; p < 3; p++) { boxPassH(a, b, W, H, r); boxPassV(b, a, W, H, r); }
     Ablur.set(a);
   }
 
   function buildBase() {
     const { r, g, b } = parseColor(state.textColor);
-    const e = featherEdge(), thr = THR;
-    // rest state: Play off => fully merged (w=1); Play on => crisp (w=0)
-    const wRest = state.play ? 0 : 1;
-    for (let i = 0; i < FW * FH; i++) {
-      const field = Acrisp[i] * (1 - wRest) + Ablur[i] * wRest;
-      const a = smoothstep(thr - e, thr + e, field) * 255;
+    const e = featherEdge(), thr = THR, melt = !state.play; // Play off => whole word melts
+    for (let i = 0; i < W * H; i++) {
+      // Play on rest state is TRUE vector text (raw glyph coverage, native AA);
+      // Play off shows the fully merged metaball.
+      const a = (melt ? smoothstep(thr - e, thr + e, Ablur[i]) : Acrisp[i]) * 255;
       const o = i * 4; baseRGBA[o] = r; baseRGBA[o + 1] = g; baseRGBA[o + 2] = b; baseRGBA[o + 3] = a;
     }
   }
@@ -282,34 +290,42 @@
   // ---------- background ----------
   let bgImg = null;
   function buildBg() {
-    bgctx.clearRect(0, 0, FW, FH);
+    bgctx.clearRect(0, 0, W, H);
     $('#frame').classList.toggle('transparent', state.bgMode === 'none');
-    if (state.bgMode === 'color') { bgctx.fillStyle = state.bgColor; bgctx.fillRect(0, 0, FW, FH); }
+    if (state.bgMode === 'color') { bgctx.fillStyle = state.bgColor; bgctx.fillRect(0, 0, W, H); }
     else if (state.bgMode === 'image' && bgImg) {
-      const s = Math.max(FW / bgImg.width, FH / bgImg.height);
+      const s = Math.max(W / bgImg.width, H / bgImg.height);
       const w = bgImg.width * s, h = bgImg.height * s;
-      bgctx.drawImage(bgImg, (FW - w) / 2, (FH - h) / 2, w, h);
+      bgctx.drawImage(bgImg, (W - w) / 2, (H - h) / 2, w, h);
     }
   }
 
   // ---------- compositing ----------
   function compose() {
-    ctx.clearRect(0, 0, FW, FH);
+    ctx.clearRect(0, 0, W, H);
     if (state.bgMode !== 'none') ctx.drawImage(bgCanvas, 0, 0);
     ctx.drawImage(textCanvas, 0, 0);
   }
   function drawStatic() {           // rest state (no cursor influence)
-    work.set(baseRGBA);
-    textImage.data.set(work);
+    textImage.data.set(baseRGBA);
     tctx.putImageData(textImage, 0, 0);
     compose();
+    prev = null;
+  }
+  // restore a rectangle of the working buffer back to the rest state
+  function restoreRect(x0, y0, x1, y1) {
+    const wd = textImage.data;
+    for (let y = y0; y < y1; y++) {
+      const off = (y * W + x0) * 4, end = (y * W + x1) * 4;
+      wd.set(baseRGBA.subarray(off, end), off);
+    }
   }
 
   // ---------- interaction loop ----------
-  const REACH = 0.30 * FW, INVR2 = 1 / (REACH * REACH); // finite-support influence radius
   const NOISE_AMP = 0.55, SCROLL_X = 14, SCROLL_Y = 9;
-  let hover = false, running = false, raf = null;
-  let tcx = FW / 2, tcy = FH / 2, cx = FW / 2, cy = FH / 2, s = 0;
+  let reach = 0.2 * W, invr2 = 1 / (reach * reach); // finite-support influence radius
+  let hover = false, running = false, raf = null, prev = null;
+  let tcx = W / 2, tcy = H / 2, cx = W / 2, cy = H / 2, s = 0;
 
   function frame() {
     const t = performance.now() / 1000;
@@ -319,41 +335,50 @@
 
     if (!hover && s < 0.004) { running = false; s = 0; drawStatic(); return; }
 
-    work.set(baseRGBA);
     const { r, g, b } = parseColor(state.textColor);
     const e = featherEdge(), thr = THR;
-    const x0 = Math.max(0, (cx - REACH) | 0), x1 = Math.min(FW, (cx + REACH) | 0);
-    const y0 = Math.max(0, (cy - REACH) | 0), y1 = Math.min(FH, (cy + REACH) | 0);
+    const x0 = Math.max(0, (cx - reach) | 0), x1 = Math.min(W, Math.ceil(cx + reach));
+    const y0 = Math.max(0, (cy - reach) | 0), y1 = Math.min(H, Math.ceil(cy + reach));
     const nox = t * SCROLL_X, noy = t * SCROLL_Y;
+    const wd = textImage.data;
+
+    // restore last frame's touched region (and this frame's) to the rest state
+    if (prev) restoreRect(Math.min(prev[0], x0), Math.min(prev[1], y0), Math.max(prev[2], x1), Math.max(prev[3], y1));
+    else restoreRect(x0, y0, x1, y1);
 
     for (let y = y0; y < y1; y++) {
-      const dy = y - cy, dy2 = dy * dy, rowi = y * FW;
+      const dy = y - cy, dy2 = dy * dy, rowi = y * W;
       for (let x = x0; x < x1; x++) {
         const dx = x - cx;
-        const q = (dx * dx + dy2) * INVR2;    // 0 at centre → 1 at REACH
+        const q = (dx * dx + dy2) * invr2;    // 0 at centre → 1 at reach
         if (q >= 1) continue;
-        const f = 1 - q, w = s * f * f;       // smooth finite-support falloff (no exp)
-        if (w < 0.004) continue;             // leave rest-state pixel untouched
+        const f = 1 - q, m = s * f * f;       // smooth finite-support influence (no exp)
+        if (m < 0.004) continue;             // rest pixel already restored to vector text
         const i = rowi + x;
-        let field = Acrisp[i] * (1 - w) + Ablur[i] * w;
-        field += (sampleNoise(x + nox, y + noy) - 0.5) * NOISE_AMP * w;
-        const a = smoothstep(thr - e, thr + e, field) * 255;
-        const o = i * 4; work[o] = r; work[o + 1] = g; work[o + 2] = b; work[o + 3] = a;
+        // liquid metaball shape (blend coverage, wobble, then threshold)
+        let cov = Acrisp[i] * (1 - m) + Ablur[i] * m;
+        cov += (sampleNoise(x + nox, y + noy) - 0.5) * NOISE_AMP * m;
+        const liquid = smoothstep(thr - e, thr + e, cov);
+        // cross-blend vector text -> liquid by influence so the seam is smooth
+        const a = (Acrisp[i] * (1 - m) + liquid * m) * 255;
+        const o = i * 4; wd[o] = r; wd[o + 1] = g; wd[o + 2] = b; wd[o + 3] = a;
       }
     }
-    textImage.data.set(work);
-    tctx.putImageData(textImage, 0, 0);
+    const ux0 = prev ? Math.min(prev[0], x0) : x0, uy0 = prev ? Math.min(prev[1], y0) : y0;
+    const ux1 = prev ? Math.max(prev[2], x1) : x1, uy1 = prev ? Math.max(prev[3], y1) : y1;
+    tctx.putImageData(textImage, 0, 0, ux0, uy0, ux1 - ux0, uy1 - uy0);
     compose();
+    prev = [x0, y0, x1, y1];
     raf = requestAnimationFrame(frame);
   }
-  function startLoop() { if (!running) { running = true; raf = requestAnimationFrame(frame); } }
+  function startLoop() { if (!running) { running = true; drawStatic(); raf = requestAnimationFrame(frame); } }
 
   const frameEl = $('#frame');
   frameEl.addEventListener('pointermove', (e) => {
     if (!state.play) return;
     const rect = frameEl.getBoundingClientRect();
-    tcx = ((e.clientX - rect.left) / rect.width) * FW;
-    tcy = ((e.clientY - rect.top) / rect.height) * FH;
+    tcx = ((e.clientX - rect.left) / rect.width) * W;
+    tcy = ((e.clientY - rect.top) / rect.height) * H;
     hover = true; startLoop();
   });
   frameEl.addEventListener('pointerleave', () => { hover = false; });
@@ -442,11 +467,10 @@
     if (r >= 1) { let a = Float32Array.from(Ac), b = new Float32Array(fw * fh);
       for (let p = 0; p < 3; p++) { boxPassH(a, b, fw, fh, r); boxPassV(b, a, fw, fh, r); } Ab = a; }
     const { r: cr, g: cg, b: cb } = parseColor(state.textColor);
-    const e = featherEdge(), thr = THR, wRest = state.play ? 0 : 1;
+    const e = featherEdge(), thr = THR, melt = !state.play;
     const img = octx2.createImageData(fw, fh), od = img.data;
     for (let i = 0; i < fw * fh; i++) {
-      const field = Ac[i] * (1 - wRest) + Ab[i] * wRest;
-      const a = smoothstep(thr - e, thr + e, field) * 255;
+      const a = (melt ? smoothstep(thr - e, thr + e, Ab[i]) : Ac[i]) * 255; // Play on => crisp vector
       const o = i * 4; od[o] = cr; od[o + 1] = cg; od[o + 2] = cb; od[o + 3] = a;
     }
     const txt = document.createElement('canvas'); txt.width = fw; txt.height = fh;
@@ -569,8 +593,25 @@
     DEFS.forEach(updateDial); rebuildField(); if (!running) drawStatic();
   });
 
+  // ---------- responsive device-resolution sizing ----------
+  function resize() {
+    const rect = frameEl.getBoundingClientRect();
+    if (!rect.width) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.min(MAXW, Math.max(600, Math.round(rect.width * dpr)));
+    const h = Math.round(w * VB_H / VB_W);
+    if (w === W && h === H) return;
+    allocate(w, h);
+    NCELL = W / GW;
+    reach = 0.2 * W; invr2 = 1 / (reach * reach);
+    cx = tcx = W / 2; cy = tcy = H / 2;
+    buildBg(); rebuildField(); drawStatic();
+  }
+
   // init
-  buildBg(); rebuildField(); drawStatic();
+  resize();
+  if (window.ResizeObserver) { let to; new ResizeObserver(() => { clearTimeout(to); to = setTimeout(resize, 120); }).observe(frameEl); }
+  else window.addEventListener('resize', resize);
 })();
 </script>
 </body>
