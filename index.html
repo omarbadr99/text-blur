@@ -355,12 +355,14 @@
         const f = 1 - q, m = s * f * f;       // smooth finite-support influence (no exp)
         if (m < 0.004) continue;             // rest pixel already restored to vector text
         const i = rowi + x;
-        // liquid metaball shape (blend coverage, wobble, then threshold)
-        let cov = Acrisp[i] * (1 - m) + Ablur[i] * m;
+        // ONE morphing shape: coverage grows from crisp glyph toward the blurred
+        // (merged) field by m, with a little wobble. We only vary the edge
+        // *sharpness* by m (crisp vector at m=0 -> hard metaball edge at m=1),
+        // so there is no cross-fade between two shapes and thus no lens/mask disc.
+        let cov = Acrisp[i] + (Ablur[i] - Acrisp[i]) * m;
         cov += (sampleNoise(x + nox, y + noy) - 0.5) * NOISE_AMP * m;
-        const liquid = smoothstep(thr - e, thr + e, cov);
-        // cross-blend vector text -> liquid by influence so the seam is smooth
-        const a = (Acrisp[i] * (1 - m) + liquid * m) * 255;
+        const th = smoothstep(thr - e, thr + e, cov);
+        const a = (cov + (th - cov) * m) * 255;   // mix(coverage, threshold) by m
         const o = i * 4; wd[o] = r; wd[o + 1] = g; wd[o + 2] = b; wd[o + 3] = a;
       }
     }
