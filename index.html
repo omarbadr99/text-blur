@@ -159,19 +159,22 @@
           <filter id="goo" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur id="gooBlur" in="SourceGraphic" stdDeviation="8" result="blur"/>
             <feColorMatrix id="gooMatrix" in="blur" type="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -11" result="goo"/>
-            <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -11"/>
           </filter>
 
           <!-- soft circular lens that reveals the blurred copy only near the cursor -->
-          <radialGradient id="lensGrad" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stop-color="#fff"/>
-            <stop offset="90%"  stop-color="#fff"/>
-            <stop offset="100%" stop-color="#000"/>
-          </radialGradient>
-          <!-- reveals the blurred copy inside the lens -->
+          <!-- a crisp-edged circle (lightly softened) that follows the cursor -->
+          <filter id="lensSoft" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="5"/>
+          </filter>
+          <!-- reveals the melted copy inside the lens -->
           <mask id="lens" maskUnits="userSpaceOnUse" x="-600" y="-600" width="2000" height="2200">
-            <circle id="lensCircle" cx="-9999" cy="-9999" r="190" fill="url(#lensGrad)"/>
+            <circle id="lensCircle" cx="-9999" cy="-9999" r="190" fill="#fff" filter="url(#lensSoft)"/>
+          </mask>
+          <!-- complement: crisp copy everywhere EXCEPT inside the lens -->
+          <mask id="lensInv" maskUnits="userSpaceOnUse" x="-600" y="-600" width="2000" height="2200">
+            <rect x="-600" y="-600" width="2000" height="2200" fill="#fff"/>
+            <circle id="lensCircleInv" cx="-9999" cy="-9999" r="190" fill="#000" filter="url(#lensSoft)"/>
           </mask>
 
           <!-- single source glyph reused by the crisp + blurred layers -->
@@ -299,12 +302,14 @@
   function applyMode() {
     const crisp = $('#wordCrisp'), blur = $('#wordBlur');
     if (state.play) {
-      // crisp copy stays fully drawn underneath (no gaps); the melted copy is
-      // laid on top only inside the lens.
+      // crisp outside the lens, melted inside — complementary hard-ish masks so
+      // the original text never shows through the melt and there are no gaps.
       crisp.style.display = '';
+      crisp.setAttribute('mask', 'url(#lensInv)');
       blur.setAttribute('mask', 'url(#lens)');
     } else {
       crisp.style.display = 'none';
+      crisp.removeAttribute('mask');
       blur.removeAttribute('mask');
     }
   }
@@ -420,10 +425,11 @@
     else { lensX += (targetX - lensX) * 0.3; lensY += (targetY - lensY) * 0.3; }
     lensR += (targetR - lensR) * 0.25;
 
-    const c = $('#lensCircle');
-    c.setAttribute('cx', lensX.toFixed(1));
-    c.setAttribute('cy', lensY.toFixed(1));
-    c.setAttribute('r', Math.max(0, lensR).toFixed(1));
+    const x = lensX.toFixed(1), y = lensY.toFixed(1), r = Math.max(0, lensR).toFixed(1);
+    for (const id of ['#lensCircle', '#lensCircleInv']) {
+      const c = $(id);
+      c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', r);
+    }
     raf = requestAnimationFrame(loop);
   }
   function setPlay(on) {
@@ -436,6 +442,7 @@
     if (on) {
       hover = false; lensR = 0; lensX = lensY = -9999;
       $('#lensCircle').setAttribute('r', '0');
+      $('#lensCircleInv').setAttribute('r', '0');
       raf = requestAnimationFrame(loop);
     } else {
       cancelAnimationFrame(raf); raf = null;
