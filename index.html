@@ -237,9 +237,9 @@
     </div>
 
     <p class="hint">Type your text, then shape it: <b>Amount</b> is blur strength,
-      <b>Feather</b> melts hard gooey edges into a soft glow, and <b>X/Y</b> nudge the
-      wordmark. Hit <b>Play</b> and hover over the canvas — the blur drifts toward your
-      cursor and breathes when still, like the reference clip.</p>
+      <b>Feather</b> melts hard gooey edges into a soft glow, and <b>X/Y</b> place the
+      wordmark. Hit <b>Play</b> and the text stays put and crisp — move your cursor near
+      it and the blur ramps up where you hover, fading back to sharp as you move away.</p>
   </aside>
 
 <script>
@@ -260,8 +260,8 @@
     { key: 'feather', name: 'Feather', min: 0, max: 100, def: 18 },
   ];
 
-  // live offsets driven by Play mode (added on top of base values)
-  let dynX = 0, dynY = 0, dynBlur = 0;
+  // live blur driven by Play mode (text position stays fixed)
+  let dynBlur = 0;
 
   // ===================================================================
   //  Rendering
@@ -274,9 +274,11 @@
   }
 
   function render() {
-    $('#textGroup').setAttribute('transform',
-      `translate(${(state.posX + dynX).toFixed(1)} ${(state.posY + dynY).toFixed(1)})`);
-    $('#gooBlur').setAttribute('stdDeviation', Math.max(0, state.amount + dynBlur).toFixed(2));
+    $('#textGroup').setAttribute('transform', `translate(${state.posX} ${state.posY})`);
+    // Play mode: text is crisp (0) by default and only blurs on hover.
+    // Otherwise the Amount dial sets a static blur for designing a still.
+    const blur = state.play ? dynBlur : state.amount;
+    $('#gooBlur').setAttribute('stdDeviation', Math.max(0, blur).toFixed(2));
     $('#gooMatrix').setAttribute('values', gooMatrixValues(state.feather));
     $('#word').setAttribute('fill', state.textColor);
   }
@@ -368,7 +370,7 @@
   //  Play mode — blur follows the cursor on hover
   // ===================================================================
   let raf = null, hover = false;
-  let mx = 0.5, my = 0.5, lastMx = 0.5, lastMy = 0.5, lastT = 0, speed = 0;
+  let mx = 0.5, my = 0.5;
 
   const frame = $('#frame');
   frame.addEventListener('pointermove', (e) => {
@@ -376,27 +378,23 @@
     mx = (e.clientX - r.left) / r.width;
     my = (e.clientY - r.top) / r.height;
     hover = true;
-    const now = performance.now();
-    if (lastT) {
-      const dt = Math.max(16, now - lastT);
-      speed = Math.min(1, Math.hypot(mx - lastMx, my - lastMy) / dt * 1000);
-    }
-    lastMx = mx; lastMy = my; lastT = now;
   });
   frame.addEventListener('pointerleave', () => { hover = false; });
 
-  function loop(t) {
-    // target offset follows the cursor when hovering; recentres otherwise
-    const targetX = hover ? (mx - 0.5) * 170 : 0;
-    const targetY = hover ? (my - 0.5) * 210 : 0;
-    // blur: boosted by how fast you move, plus a gentle idle "breathing"
-    const idle = (Math.sin(t / 700) * 0.5 + 0.5) * 5;
-    const targetBlur = hover ? 4 + speed * 26 : idle;
-
-    dynX += (targetX - dynX) * 0.12;
-    dynY += (targetY - dynY) * 0.12;
-    dynBlur += (targetBlur - dynBlur) * 0.15;
-    speed *= 0.90; // decay so it settles when the cursor stops
+  function loop() {
+    // The text never moves. Blur is 0 unless the cursor is near the wordmark,
+    // ramping up to the Amount value the closer you hover to it.
+    let factor = 0;
+    if (hover) {
+      const vx = mx * 800, vy = my * 1000;            // cursor in viewBox space
+      const cx = 400 + state.posX, cy = 500 + state.posY; // wordmark centre
+      const dist = Math.hypot(vx - cx, vy - cy);
+      const radius = 420;
+      factor = Math.max(0, Math.min(1, 1 - dist / radius));
+      factor = factor * factor * (3 - 2 * factor);   // smoothstep
+    }
+    const targetBlur = factor * state.amount;
+    dynBlur += (targetBlur - dynBlur) * 0.18;          // smooth follow
     render();
     raf = requestAnimationFrame(loop);
   }
@@ -404,14 +402,14 @@
     state.play = on;
     const btn = $('#play');
     btn.classList.toggle('active', on);
-    btn.textContent = on ? '⏸ Stop' : '▶ Play — blur follows cursor';
+    btn.textContent = on ? '⏸ Stop' : '▶ Play — blur on hover';
     frame.classList.toggle('playing', on);
     if (on) {
-      lastT = 0; speed = 0;
+      dynBlur = 0;                                     // start crisp
       raf = requestAnimationFrame(loop);
     } else {
       cancelAnimationFrame(raf); raf = null;
-      dynX = dynY = dynBlur = 0;
+      dynBlur = 0;
       render();
     }
   }
