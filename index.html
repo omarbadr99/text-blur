@@ -6,39 +6,21 @@
 <title>Text Blur — Gooey Type Studio</title>
 <style>
   :root {
-    --ink: #1c1714;
-    --panel: #ffffff;
-    --line: #e7ddcd;
-    --accent: #e2580f;
-    --muted: #8c8275;
-    --field: #fbf8f2;
-    --shadow: 0 10px 30px rgba(40, 25, 10, .12);
+    --ink: #1c1714; --panel: #fff; --line: #e7ddcd; --accent: #e2580f;
+    --muted: #8c8275; --field: #fbf8f2; --shadow: 0 10px 30px rgba(40,25,10,.12);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
-    margin: 0;
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: var(--ink);
-    background: #ece2d2;
-    display: grid;
-    grid-template-columns: 1fr 360px;
-    height: 100vh;
-    overflow: hidden;
+    margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink); background: #ece2d2;
+    display: grid; grid-template-columns: 1fr 360px; height: 100vh; overflow: hidden;
   }
-
-  /* ---------- Stage / preview ---------- */
   .stage { display: grid; place-items: center; padding: 28px; min-width: 0; }
   .frame {
-    position: relative;
-    width: min(100%, 70vh);
-    aspect-ratio: 800 / 1000;
-    border-radius: 22px;
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    background: #fff;
+    position: relative; width: min(100%, 70vh); aspect-ratio: 800 / 1000;
+    border-radius: 22px; overflow: hidden; box-shadow: var(--shadow); background: #fff;
   }
-  /* checkerboard shown when background is "none" */
   .frame.transparent {
     background-color: #fff;
     background-image:
@@ -46,102 +28,52 @@
       linear-gradient(-45deg, #e9e2d6 25%, transparent 25%),
       linear-gradient(45deg, transparent 75%, #e9e2d6 75%),
       linear-gradient(-45deg, transparent 75%, #e9e2d6 75%);
-    background-size: 24px 24px;
-    background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+    background-size: 24px 24px; background-position: 0 0, 0 12px, 12px -12px, -12px 0;
   }
   .frame.playing { cursor: crosshair; }
-  svg.canvas { display: block; width: 100%; height: 100%; }
+  canvas.canvas { display: block; width: 100%; height: 100%; }
 
-  /* ---------- Control panel ---------- */
   .panel {
-    background: var(--panel);
-    border-left: 1px solid var(--line);
-    padding: 22px 22px 28px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    background: var(--panel); border-left: 1px solid var(--line);
+    padding: 22px 22px 28px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;
   }
   .brand { display: flex; align-items: baseline; gap: 8px; }
   .brand h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
   .brand span { font-size: 12px; color: var(--muted); }
-
-  label.cap {
-    display: block;
-    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
-    color: var(--muted); margin-bottom: 8px;
-  }
+  label.cap { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
   input[type="text"].textInput {
-    width: 100%;
-    border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 12px; font-size: 15px; font-weight: 600;
-    color: var(--ink); background: var(--field); outline: none;
+    width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    font-size: 15px; font-weight: 600; color: var(--ink); background: var(--field); outline: none;
   }
   input[type="text"].textInput:focus { border-color: var(--accent); }
-
-  /* fill + bg color rows */
   .colorRow { display: flex; align-items: center; gap: 10px; }
-  input[type="color"] {
-    width: 38px; height: 34px; padding: 0; border: 1px solid var(--line);
-    border-radius: 9px; background: none; cursor: pointer;
-  }
+  input[type="color"] { width: 38px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 9px; background: none; cursor: pointer; }
   .colorRow .hex { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-
-  /* segmented control */
-  .seg { display: flex; background: var(--field); border: 1px solid var(--line);
-         border-radius: 10px; padding: 3px; gap: 3px; }
-  .seg button {
-    flex: 1; border: none; background: none; color: var(--muted);
-    padding: 7px 6px; font-size: 12px; font-weight: 600; border-radius: 7px; cursor: pointer;
-  }
+  .seg { display: flex; background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
+  .seg button { flex: 1; border: none; background: none; color: var(--muted); padding: 7px 6px; font-size: 12px; font-weight: 600; border-radius: 7px; cursor: pointer; }
   .seg button.active { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-
-  .uploadBtn {
-    width: 100%; border: 1px dashed var(--line); background: var(--field);
-    border-radius: 10px; padding: 12px; font-size: 13px; font-weight: 600;
-    color: var(--ink); cursor: pointer;
-  }
+  .uploadBtn { width: 100%; border: 1px dashed var(--line); background: var(--field); border-radius: 10px; padding: 12px; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; }
   .uploadBtn:hover { border-color: var(--accent); }
   .fileName { font-size: 11px; color: var(--muted); margin-top: 6px; word-break: break-all; }
-
-  /* Figma-style coordinate fields */
   .coords { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .coord {
-    display: flex; align-items: center; gap: 6px;
-    border: 1px solid var(--line); border-radius: 9px; background: var(--field);
-    padding: 0 10px;
-  }
+  .coord { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--field); padding: 0 10px; }
   .coord:focus-within { border-color: var(--accent); }
   .coord .axis { font-size: 12px; font-weight: 700; color: var(--muted); width: 12px; }
-  .coord input {
-    border: none; background: none; outline: none; width: 100%;
-    padding: 9px 0; font-size: 14px; font-weight: 600; color: var(--ink);
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* ---------- Dials ---------- */
+  .coord input { border: none; background: none; outline: none; width: 100%; padding: 9px 0; font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
   .dials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .dial { display: flex; flex-direction: column; align-items: center; gap: 8px; user-select: none; }
   .knob { position: relative; width: 84px; height: 84px; touch-action: none; cursor: ns-resize; }
   .knob svg { display: block; width: 100%; height: 100%; }
-  .knob .val { position: absolute; inset: 0; display: grid; place-items: center;
-               font-size: 17px; font-weight: 700; pointer-events: none; }
+  .knob .val { position: absolute; inset: 0; display: grid; place-items: center; font-size: 17px; font-weight: 700; pointer-events: none; }
   .dial .name { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
-
   .row { display: flex; gap: 10px; }
-  button.btn {
-    flex: 1; border: 1px solid var(--line); background: var(--field); color: var(--ink);
-    border-radius: 10px; padding: 11px 12px; font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: background .15s, border-color .15s;
-  }
+  button.btn { flex: 1; border: 1px solid var(--line); background: var(--field); color: var(--ink); border-radius: 10px; padding: 11px 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s; }
   button.btn:hover { border-color: var(--accent); }
   button.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
   button.btn.primary:hover { filter: brightness(1.05); }
   button.btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
-
   .hint { font-size: 11px; color: var(--muted); line-height: 1.5; }
   .group { display: flex; flex-direction: column; gap: 10px; }
-
   @media (max-width: 820px) {
     body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
     .panel { border-left: none; border-top: 1px solid var(--line); }
@@ -150,73 +82,23 @@
 </style>
 </head>
 <body>
-  <!-- ============ STAGE ============ -->
   <div class="stage">
     <div class="frame transparent" id="frame">
-      <svg class="canvas" id="canvas" viewBox="0 0 800 1000"
-           xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-        <defs>
-          <filter id="goo" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur id="gooBlur" in="SourceGraphic" stdDeviation="8" result="blur"/>
-            <feColorMatrix id="gooMatrix" in="blur" type="matrix"
-              values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -11"/>
-          </filter>
-
-          <!-- soft circular lens that reveals the blurred copy only near the cursor -->
-          <!-- a crisp-edged circle (lightly softened) that follows the cursor -->
-          <filter id="lensSoft" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="5"/>
-          </filter>
-          <!-- reveals the melted copy inside the lens -->
-          <mask id="lens" maskUnits="userSpaceOnUse" x="-600" y="-600" width="2000" height="2200">
-            <circle id="lensCircle" cx="-9999" cy="-9999" r="190" fill="#fff" filter="url(#lensSoft)"/>
-          </mask>
-          <!-- complement: crisp copy everywhere EXCEPT inside the lens -->
-          <mask id="lensInv" maskUnits="userSpaceOnUse" x="-600" y="-600" width="2000" height="2200">
-            <rect x="-600" y="-600" width="2000" height="2200" fill="#fff"/>
-            <circle id="lensCircleInv" cx="-9999" cy="-9999" r="190" fill="#000" filter="url(#lensSoft)"/>
-          </mask>
-
-          <!-- single source glyph reused by the crisp + blurred layers -->
-          <text id="wordSrc" x="400" y="500" text-anchor="middle" dominant-baseline="central"
-                font-family="'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif"
-                font-weight="900" font-size="150" fill="#1c1714"
-                letter-spacing="-6">Nocaff</text>
-
-          <clipPath id="frameClip"><rect width="800" height="1000"/></clipPath>
-        </defs>
-
-        <g clip-path="url(#frameClip)">
-          <!-- background: none (transparent) | color rect | image -->
-          <rect id="bg" width="800" height="1000" fill="none"/>
-          <image id="bgImage" width="800" height="1000" preserveAspectRatio="xMidYMid slice"
-                 style="display:none"/>
-          <!-- gooey wordmark: crisp base + blurred copy masked to the hover lens -->
-          <g id="textGroup">
-            <use id="wordCrisp" href="#wordSrc" xlink:href="#wordSrc" style="display:none"/>
-            <use id="wordBlur"  href="#wordSrc" xlink:href="#wordSrc" filter="url(#goo)"/>
-          </g>
-        </g>
-      </svg>
+      <canvas class="canvas" id="canvas"></canvas>
     </div>
   </div>
 
-  <!-- ============ PANEL ============ -->
   <aside class="panel">
     <div class="brand"><h1>Text Blur</h1><span>gooey type studio</span></div>
 
     <div class="group">
       <label class="cap" for="textInput">Text</label>
-      <input id="textInput" class="textInput" type="text" value="Nocaff" maxlength="24"
-             autocomplete="off" spellcheck="false"/>
+      <input id="textInput" class="textInput" type="text" value="Nocaff" maxlength="24" autocomplete="off" spellcheck="false"/>
     </div>
 
     <div class="group">
       <label class="cap">Text colour</label>
-      <div class="colorRow">
-        <input type="color" id="textColor" value="#1c1714"/>
-        <span class="hex" id="textHex">#1c1714</span>
-      </div>
+      <div class="colorRow"><input type="color" id="textColor" value="#1c1714"/><span class="hex" id="textHex">#1c1714</span></div>
     </div>
 
     <div class="group">
@@ -226,10 +108,7 @@
         <button data-mode="color">Colour</button>
         <button data-mode="image">Image</button>
       </div>
-      <div class="colorRow" id="bgColorRow" style="display:none">
-        <input type="color" id="bgColor" value="#e2580f"/>
-        <span class="hex" id="bgHex">#e2580f</span>
-      </div>
+      <div class="colorRow" id="bgColorRow" style="display:none"><input type="color" id="bgColor" value="#e2580f"/><span class="hex" id="bgHex">#e2580f</span></div>
       <div id="bgImageRow" style="display:none">
         <button class="uploadBtn" id="uploadBtn">Upload an image…</button>
         <input type="file" id="bgFile" accept="image/*" hidden/>
@@ -247,236 +126,325 @@
 
     <div class="dials" id="dials"></div>
 
-    <button class="btn" id="play">▶ Play — blur follows cursor</button>
+    <button class="btn" id="play">▶ Play — liquid follows cursor</button>
 
     <div class="row">
       <button class="btn" id="randomize">Surprise me</button>
       <button class="btn primary" id="download">Download PNG</button>
     </div>
 
-    <p class="hint">Type your text, then shape it: <b>Amount</b> is blur strength,
-      <b>Feather</b> melts hard gooey edges into a soft glow, and <b>X/Y</b> place the
-      wordmark. Hit <b>Play</b> and the text stays put and crisp — move your cursor near
-      it and the blur ramps up where you hover, fading back to sharp as you move away.</p>
+    <p class="hint">With <b>Play</b> off, <b>Amount</b> melts the whole word into one gooey
+      mark. Hit <b>Play</b> and the word is crisp until you move your cursor over it — the
+      letters liquefy and flow toward the cursor, merging and pulling apart, then settle
+      back as you move away. <b>Feather</b> sets how soft the liquid edge is.</p>
   </aside>
 
 <script>
 (() => {
   const $ = (s) => document.querySelector(s);
 
-  // ---------- state ----------
+  const VB_W = 800, VB_H = 1000;       // logical design space
+  const FIELD = 0.7;                    // field resolution scale (perf vs sharpness)
+  const FW = Math.round(VB_W * FIELD), FH = Math.round(VB_H * FIELD);
+  const THR = 0.34;                     // metaball threshold (low enough that blobs stay solid as they merge)
+
   const state = {
+    text: 'Nocaff', textColor: '#1c1714',
     posX: 0, posY: 0, amount: 8, feather: 18,
-    textColor: '#1c1714',
     bgMode: 'none', bgColor: '#e2580f', bgImage: null,
     play: false,
   };
 
-  // dials only for amount + feather (X/Y are number fields now)
+  const canvas = $('#canvas'); canvas.width = FW; canvas.height = FH;
+  const ctx = canvas.getContext('2d');
+  const textCanvas = document.createElement('canvas'); textCanvas.width = FW; textCanvas.height = FH;
+  const tctx = textCanvas.getContext('2d');
+  const bgCanvas = document.createElement('canvas'); bgCanvas.width = FW; bgCanvas.height = FH;
+  const bgctx = bgCanvas.getContext('2d');
+  const offTxt = document.createElement('canvas'); offTxt.width = FW; offTxt.height = FH;
+  const octx = offTxt.getContext('2d');
+
+  // field buffers
+  let Acrisp = new Float32Array(FW * FH);   // crisp glyph coverage 0..1
+  let Ablur  = new Float32Array(FW * FH);   // blurred coverage (drives merging)
+  let baseRGBA = new Uint8ClampedArray(FW * FH * 4); // rest-state pixels
+  const work = new Uint8ClampedArray(FW * FH * 4);
+  const textImage = tctx.createImageData(FW, FH);
+
+  // ---------- helpers ----------
+  const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
+  const smoothstep = (e0, e1, x) => { const t = clamp01((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
+  function parseColor(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+  const featherEdge = () => 0.02 + (state.feather / 100) * 0.30; // half-width of the alpha ramp
+
+  // ---------- value noise (for the liquid wobble) ----------
+  const GW = 26, GH = 32, NCELL = FW / GW;
+  const ng = new Float32Array(GW * GH);
+  for (let i = 0; i < ng.length; i++) ng[i] = Math.random();
+  function sampleNoise(u, v) {
+    u /= NCELL; v /= NCELL;
+    let x0 = Math.floor(u), y0 = Math.floor(v);
+    const fx = u - x0, fy = v - y0;
+    x0 = ((x0 % GW) + GW) % GW; y0 = ((y0 % GH) + GH) % GH;
+    const x1 = (x0 + 1) % GW, y1 = (y0 + 1) % GH;
+    const a = ng[y0 * GW + x0], b = ng[y0 * GW + x1], c = ng[y1 * GW + x0], d = ng[y1 * GW + x1];
+    const top = a + (b - a) * fx, bot = c + (d - c) * fx;
+    return top + (bot - top) * fy;
+  }
+
+  // ---------- field precompute ----------
+  function renderTextAlpha() {
+    octx.setTransform(1, 0, 0, 1, 0, 0);
+    octx.clearRect(0, 0, FW, FH);
+    octx.save();
+    octx.scale(FIELD, FIELD);            // draw in VB coords
+    octx.fillStyle = '#fff';
+    octx.textAlign = 'center'; octx.textBaseline = 'middle';
+    octx.font = "900 150px 'Arial Black','Helvetica Neue',Helvetica,Arial,sans-serif";
+    try { octx.letterSpacing = '-6px'; } catch (e) {}
+    octx.fillText(state.text || ' ', 400 + state.posX, 500 + state.posY);
+    octx.restore();
+    const d = octx.getImageData(0, 0, FW, FH).data;
+    for (let i = 0; i < FW * FH; i++) Acrisp[i] = d[i * 4 + 3] / 255;
+  }
+
+  function boxPassH(src, dst, w, h, r) {
+    const norm = 1 / (2 * r + 1);
+    for (let y = 0; y < h; y++) {
+      const row = y * w; let acc = 0;
+      for (let x = -r; x <= r; x++) acc += src[row + Math.min(w - 1, Math.max(0, x))];
+      for (let x = 0; x < w; x++) {
+        dst[row + x] = acc * norm;
+        const add = src[row + Math.min(w - 1, x + r + 1)];
+        const sub = src[row + Math.max(0, x - r)];
+        acc += add - sub;
+      }
+    }
+  }
+  function boxPassV(src, dst, w, h, r) {
+    const norm = 1 / (2 * r + 1);
+    for (let x = 0; x < w; x++) {
+      let acc = 0;
+      for (let y = -r; y <= r; y++) acc += src[Math.min(h - 1, Math.max(0, y)) * w + x];
+      for (let y = 0; y < h; y++) {
+        dst[y * w + x] = acc * norm;
+        const add = src[Math.min(h - 1, y + r + 1) * w + x];
+        const sub = src[Math.max(0, y - r) * w + x];
+        acc += add - sub;
+      }
+    }
+  }
+  function computeBlur() {
+    const r = Math.round(state.amount * FIELD);
+    if (r < 1) { Ablur.set(Acrisp); return; }
+    let a = Float32Array.from(Acrisp), b = new Float32Array(FW * FH);
+    for (let p = 0; p < 3; p++) { boxPassH(a, b, FW, FH, r); boxPassV(b, a, FW, FH, r); }
+    Ablur.set(a);
+  }
+
+  function buildBase() {
+    const { r, g, b } = parseColor(state.textColor);
+    const e = featherEdge(), thr = THR;
+    // rest state: Play off => fully merged (w=1); Play on => crisp (w=0)
+    const wRest = state.play ? 0 : 1;
+    for (let i = 0; i < FW * FH; i++) {
+      const field = Acrisp[i] * (1 - wRest) + Ablur[i] * wRest;
+      const a = smoothstep(thr - e, thr + e, field) * 255;
+      const o = i * 4; baseRGBA[o] = r; baseRGBA[o + 1] = g; baseRGBA[o + 2] = b; baseRGBA[o + 3] = a;
+    }
+  }
+
+  function rebuildField() { renderTextAlpha(); computeBlur(); buildBase(); }
+
+  // ---------- background ----------
+  let bgImg = null;
+  function buildBg() {
+    bgctx.clearRect(0, 0, FW, FH);
+    $('#frame').classList.toggle('transparent', state.bgMode === 'none');
+    if (state.bgMode === 'color') { bgctx.fillStyle = state.bgColor; bgctx.fillRect(0, 0, FW, FH); }
+    else if (state.bgMode === 'image' && bgImg) {
+      const s = Math.max(FW / bgImg.width, FH / bgImg.height);
+      const w = bgImg.width * s, h = bgImg.height * s;
+      bgctx.drawImage(bgImg, (FW - w) / 2, (FH - h) / 2, w, h);
+    }
+  }
+
+  // ---------- compositing ----------
+  function compose() {
+    ctx.clearRect(0, 0, FW, FH);
+    if (state.bgMode !== 'none') ctx.drawImage(bgCanvas, 0, 0);
+    ctx.drawImage(textCanvas, 0, 0);
+  }
+  function drawStatic() {           // rest state (no cursor influence)
+    work.set(baseRGBA);
+    textImage.data.set(work);
+    tctx.putImageData(textImage, 0, 0);
+    compose();
+  }
+
+  // ---------- interaction loop ----------
+  const SIGMA = 0.14 * FW, TWO_S2 = 2 * SIGMA * SIGMA;
+  const NOISE_AMP = 0.55, SCROLL_X = 14, SCROLL_Y = 9;
+  let hover = false, running = false, raf = null;
+  let tcx = FW / 2, tcy = FH / 2, cx = FW / 2, cy = FH / 2, s = 0;
+
+  function frame() {
+    const t = performance.now() / 1000;
+    const targetS = hover ? 1 : 0;
+    s += (targetS - s) * 0.10;
+    cx += (tcx - cx) * 0.28; cy += (tcy - cy) * 0.28;
+
+    if (!hover && s < 0.004) { running = false; s = 0; drawStatic(); return; }
+
+    work.set(baseRGBA);
+    const { r, g, b } = parseColor(state.textColor);
+    const e = featherEdge(), thr = THR;
+    const reach = 3.0 * SIGMA;
+    const x0 = Math.max(0, (cx - reach) | 0), x1 = Math.min(FW, (cx + reach) | 0);
+    const y0 = Math.max(0, (cy - reach) | 0), y1 = Math.min(FH, (cy + reach) | 0);
+    const nox = t * SCROLL_X, noy = t * SCROLL_Y;
+
+    for (let y = y0; y < y1; y++) {
+      const dy = y - cy, dy2 = dy * dy, rowi = y * FW;
+      for (let x = x0; x < x1; x++) {
+        const dx = x - cx;
+        const w = s * Math.exp(-(dx * dx + dy2) / TWO_S2);
+        if (w < 0.004) continue;             // leave rest-state pixel untouched
+        const i = rowi + x;
+        let field = Acrisp[i] * (1 - w) + Ablur[i] * w;
+        field += (sampleNoise(x + nox, y + noy) - 0.5) * NOISE_AMP * w;
+        const a = smoothstep(thr - e, thr + e, field) * 255;
+        const o = i * 4; work[o] = r; work[o + 1] = g; work[o + 2] = b; work[o + 3] = a;
+      }
+    }
+    textImage.data.set(work);
+    tctx.putImageData(textImage, 0, 0);
+    compose();
+    raf = requestAnimationFrame(frame);
+  }
+  function startLoop() { if (!running) { running = true; raf = requestAnimationFrame(frame); } }
+
+  const frameEl = $('#frame');
+  frameEl.addEventListener('pointermove', (e) => {
+    if (!state.play) return;
+    const rect = frameEl.getBoundingClientRect();
+    tcx = ((e.clientX - rect.left) / rect.width) * FW;
+    tcy = ((e.clientY - rect.top) / rect.height) * FH;
+    hover = true; startLoop();
+  });
+  frameEl.addEventListener('pointerleave', () => { hover = false; });
+
+  function setPlay(on) {
+    state.play = on;
+    const btn = $('#play');
+    btn.classList.toggle('active', on);
+    btn.textContent = on ? '⏸ Stop' : '▶ Play — liquid follows cursor';
+    frameEl.classList.toggle('playing', on);
+    hover = false; s = 0;
+    if (running) { cancelAnimationFrame(raf); running = false; }
+    buildBase();
+    drawStatic();
+  }
+
+  // ===================================================================
+  //  Dials (Amount + Feather)  — unchanged knob widget
+  // ===================================================================
   const DEFS = [
     { key: 'amount',  name: 'Amount',  min: 0, max: 40,  def: 8  },
     { key: 'feather', name: 'Feather', min: 0, max: 100, def: 18 },
   ];
-
-  const LENS_R = 190; // radius of the hover blur lens (viewBox units)
-
-  // ===================================================================
-  //  Rendering
-  // ===================================================================
-  function gooMatrixValues(feather) {
-    const t = feather / 100;
-    const mul = 1 + (1 - t) * 21;      // 22 -> 1
-    const off = -(mul / 2) * (1 - t);  // -11 -> 0
-    return `1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 ${mul.toFixed(2)} ${off.toFixed(2)}`;
-  }
-
-  function render() {
-    $('#textGroup').setAttribute('transform', `translate(${state.posX} ${state.posY})`);
-    $('#gooBlur').setAttribute('stdDeviation', Math.max(0, state.amount).toFixed(2));
-    $('#gooMatrix').setAttribute('values', gooMatrixValues(state.feather));
-    $('#wordSrc').setAttribute('fill', state.textColor);
-  }
-
-  // Play mode shows a crisp base word with the blurred copy revealed only inside
-  // the lens; still mode shows the whole word blurred so you can design a poster.
-  function applyMode() {
-    const crisp = $('#wordCrisp'), blur = $('#wordBlur');
-    if (state.play) {
-      // crisp outside the lens, melted inside — complementary hard-ish masks so
-      // the original text never shows through the melt and there are no gaps.
-      crisp.style.display = '';
-      crisp.setAttribute('mask', 'url(#lensInv)');
-      blur.setAttribute('mask', 'url(#lens)');
-    } else {
-      crisp.style.display = 'none';
-      crisp.removeAttribute('mask');
-      blur.removeAttribute('mask');
-    }
-  }
-
-  function applyBg() {
-    const bg = $('#bg'), img = $('#bgImage'), frame = $('#frame');
-    frame.classList.toggle('transparent', state.bgMode === 'none');
-    if (state.bgMode === 'color') {
-      bg.setAttribute('fill', state.bgColor);
-      img.style.display = 'none';
-    } else if (state.bgMode === 'image' && state.bgImage) {
-      bg.setAttribute('fill', 'none');
-      img.setAttribute('href', state.bgImage);
-      img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', state.bgImage);
-      img.style.display = '';
-    } else {
-      bg.setAttribute('fill', 'none');
-      img.style.display = 'none';
-    }
-  }
-
-  // ===================================================================
-  //  Dial widgets (Amount + Feather)
-  // ===================================================================
   const R = 33, CIRC = 2 * Math.PI * R, ARC = 0.78;
   function buildDial(def) {
-    const wrap = document.createElement('div');
-    wrap.className = 'dial';
+    const wrap = document.createElement('div'); wrap.className = 'dial';
     wrap.innerHTML = `
       <div class="knob" data-key="${def.key}">
         <svg viewBox="0 0 84 84">
           <circle cx="42" cy="42" r="${R}" fill="#fbf8f2" stroke="#e7ddcd" stroke-width="6"/>
-          <circle cx="42" cy="42" r="${R}" fill="none" stroke="#ece2d2" stroke-width="6"
-            stroke-linecap="round" stroke-dasharray="${(CIRC*ARC).toFixed(1)} ${CIRC}"
-            transform="rotate(${90 + (1-ARC)*180} 42 42)"/>
-          <circle class="prog" cx="42" cy="42" r="${R}" fill="none" stroke="#e2580f" stroke-width="6"
-            stroke-linecap="round" stroke-dasharray="0 ${CIRC}"
-            transform="rotate(${90 + (1-ARC)*180} 42 42)"/>
+          <circle cx="42" cy="42" r="${R}" fill="none" stroke="#ece2d2" stroke-width="6" stroke-linecap="round"
+            stroke-dasharray="${(CIRC*ARC).toFixed(1)} ${CIRC}" transform="rotate(${90+(1-ARC)*180} 42 42)"/>
+          <circle class="prog" cx="42" cy="42" r="${R}" fill="none" stroke="#e2580f" stroke-width="6" stroke-linecap="round"
+            stroke-dasharray="0 ${CIRC}" transform="rotate(${90+(1-ARC)*180} 42 42)"/>
           <line class="ind" x1="42" y1="42" x2="42" y2="16" stroke="#1c1714" stroke-width="3" stroke-linecap="round"/>
-        </svg>
-        <div class="val"></div>
-      </div>
-      <div class="name">${def.name}</div>`;
+        </svg><div class="val"></div>
+      </div><div class="name">${def.name}</div>`;
     return wrap;
   }
   function updateDial(def) {
     const knob = document.querySelector(`.knob[data-key="${def.key}"]`);
     const frac = (state[def.key] - def.min) / (def.max - def.min);
     knob.querySelector('.prog').setAttribute('stroke-dasharray', `${(CIRC*ARC*frac).toFixed(1)} ${CIRC}`);
-    knob.querySelector('.ind').setAttribute('transform',
-      `rotate(${(1-ARC)*180 + frac*ARC*360} 42 42)`);
+    knob.querySelector('.ind').setAttribute('transform', `rotate(${(1-ARC)*180 + frac*ARC*360} 42 42)`);
     knob.querySelector('.val').textContent = Math.round(state[def.key]);
   }
   function setupDial(def) {
     const knob = document.querySelector(`.knob[data-key="${def.key}"]`);
     let startY = 0, startVal = 0, dragging = false;
+    const onChange = () => { if (def.key === 'amount') computeBlur(); buildBase(); if (!running) drawStatic(); };
     const move = (e) => {
       if (!dragging) return;
       const y = e.touches ? e.touches[0].clientY : e.clientY;
-      let v = startVal + ((startY - y) / 180) * (def.max - def.min);
-      state[def.key] = Math.max(def.min, Math.min(def.max, v));
-      updateDial(def); render();
+      state[def.key] = Math.max(def.min, Math.min(def.max, startVal + ((startY - y) / 180) * (def.max - def.min)));
+      updateDial(def); onChange();
     };
-    const up = () => {
-      dragging = false;
-      window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up);
-      window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up);
-    };
-    const down = (e) => {
-      dragging = true;
-      startY = e.touches ? e.touches[0].clientY : e.clientY;
-      startVal = state[def.key];
-      window.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
-      window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up);
-      e.preventDefault();
-    };
+    const up = () => { dragging = false; window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up); };
+    const down = (e) => { dragging = true; startY = e.touches ? e.touches[0].clientY : e.clientY; startVal = state[def.key];
+      window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up); e.preventDefault(); };
     knob.addEventListener('mousedown', down);
     knob.addEventListener('touchstart', down, { passive: false });
-    knob.addEventListener('dblclick', () => { state[def.key] = def.def; updateDial(def); render(); });
-    knob.addEventListener('wheel', (e) => {
-      e.preventDefault();
+    knob.addEventListener('dblclick', () => { state[def.key] = def.def; updateDial(def); onChange(); });
+    knob.addEventListener('wheel', (e) => { e.preventDefault();
       const step = (def.max - def.min) / 50;
       state[def.key] = Math.max(def.min, Math.min(def.max, state[def.key] - Math.sign(e.deltaY) * step));
-      updateDial(def); render();
-    }, { passive: false });
+      updateDial(def); onChange(); }, { passive: false });
   }
 
   // ===================================================================
-  //  Play mode — blur follows the cursor on hover
+  //  Export — re-render the rest state at high resolution
   // ===================================================================
-  let raf = null, hover = false;
-  let mx = 0.5, my = 0.5;
-  // current (smoothed) lens centre + radius, in the wordmark's local space
-  let lensX = -9999, lensY = -9999, lensR = 0;
-
-  const frame = $('#frame');
-  frame.addEventListener('pointermove', (e) => {
-    const r = frame.getBoundingClientRect();
-    mx = (e.clientX - r.left) / r.width;
-    my = (e.clientY - r.top) / r.height;
-    hover = true;
-  });
-  frame.addEventListener('pointerleave', () => { hover = false; });
-
-  function loop() {
-    // The text stays put and crisp; only the lens around the cursor melts.
-    // Target lens position in local space (the group is translated by posX/posY).
-    const targetX = mx * 800 - state.posX;
-    const targetY = my * 1000 - state.posY;
-    const targetR = hover ? LENS_R : 0;
-    // snap the centre when the lens is currently hidden so it doesn't sweep in
-    if (lensR < 1) { lensX = targetX; lensY = targetY; }
-    else { lensX += (targetX - lensX) * 0.3; lensY += (targetY - lensY) * 0.3; }
-    lensR += (targetR - lensR) * 0.25;
-
-    const x = lensX.toFixed(1), y = lensY.toFixed(1), r = Math.max(0, lensR).toFixed(1);
-    for (const id of ['#lensCircle', '#lensCircleInv']) {
-      const c = $(id);
-      c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', r);
+  function exportPNG() {
+    const SC = 2, W = VB_W * SC, H = VB_H * SC;
+    const fw = W, fh = H;
+    const oc = document.createElement('canvas'); oc.width = fw; oc.height = fh;
+    const octx2 = oc.getContext('2d');
+    octx2.scale(SC, SC);
+    octx2.fillStyle = '#fff'; octx2.textAlign = 'center'; octx2.textBaseline = 'middle';
+    octx2.font = "900 150px 'Arial Black','Helvetica Neue',Helvetica,Arial,sans-serif";
+    try { octx2.letterSpacing = '-6px'; } catch (e) {}
+    octx2.fillText(state.text || ' ', 400 + state.posX, 500 + state.posY);
+    const Ac = new Float32Array(fw * fh), data = octx2.getImageData(0, 0, fw, fh).data;
+    for (let i = 0; i < fw * fh; i++) Ac[i] = data[i * 4 + 3] / 255;
+    let Ab = Float32Array.from(Ac);
+    const r = Math.round(state.amount * SC);
+    if (r >= 1) { let a = Float32Array.from(Ac), b = new Float32Array(fw * fh);
+      for (let p = 0; p < 3; p++) { boxPassH(a, b, fw, fh, r); boxPassV(b, a, fw, fh, r); } Ab = a; }
+    const { r: cr, g: cg, b: cb } = parseColor(state.textColor);
+    const e = featherEdge(), thr = THR, wRest = state.play ? 0 : 1;
+    const img = octx2.createImageData(fw, fh), od = img.data;
+    for (let i = 0; i < fw * fh; i++) {
+      const field = Ac[i] * (1 - wRest) + Ab[i] * wRest;
+      const a = smoothstep(thr - e, thr + e, field) * 255;
+      const o = i * 4; od[o] = cr; od[o + 1] = cg; od[o + 2] = cb; od[o + 3] = a;
     }
-    raf = requestAnimationFrame(loop);
-  }
-  function setPlay(on) {
-    state.play = on;
-    const btn = $('#play');
-    btn.classList.toggle('active', on);
-    btn.textContent = on ? '⏸ Stop' : '▶ Play — blur on hover';
-    frame.classList.toggle('playing', on);
-    applyMode();
-    if (on) {
-      hover = false; lensR = 0; lensX = lensY = -9999;
-      $('#lensCircle').setAttribute('r', '0');
-      $('#lensCircleInv').setAttribute('r', '0');
-      raf = requestAnimationFrame(loop);
-    } else {
-      cancelAnimationFrame(raf); raf = null;
-      render();
-    }
-  }
+    const txt = document.createElement('canvas'); txt.width = fw; txt.height = fh;
+    txt.getContext('2d').putImageData(img, 0, 0);
 
-  // ===================================================================
-  //  Export PNG
-  // ===================================================================
-  function download() {
-    const wasPlaying = state.play;
-    if (wasPlaying) setPlay(false);
-    const clone = $('#canvas').cloneNode(true);
-    clone.setAttribute('width', 1600);
-    clone.setAttribute('height', 2000);
-    const xml = new XMLSerializer().serializeToString(clone);
-    const url = URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml;charset=utf-8' }));
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = 1600; c.height = 2000;
-      c.getContext('2d').drawImage(img, 0, 0);
-      URL.revokeObjectURL(url);
-      c.toBlob((png) => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(png);
-        a.download = (($('#textInput').value || 'text-blur').replace(/\s+/g, '-').toLowerCase()) + '.png';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      }, 'image/png');
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); alert('Export failed — try again.'); };
-    img.src = url;
+    const out = document.createElement('canvas'); out.width = W; out.height = H;
+    const octx3 = out.getContext('2d');
+    if (state.bgMode === 'color') { octx3.fillStyle = state.bgColor; octx3.fillRect(0, 0, W, H); }
+    else if (state.bgMode === 'image' && bgImg) {
+      const sc = Math.max(W / bgImg.width, H / bgImg.height), iw = bgImg.width * sc, ih = bgImg.height * sc;
+      octx3.drawImage(bgImg, (W - iw) / 2, (H - ih) / 2, iw, ih);
+    }
+    octx3.drawImage(txt, 0, 0);
+    out.toBlob((png) => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(png);
+      a.download = (state.text || 'text-blur').replace(/\s+/g, '-').toLowerCase() + '.png';
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }, 'image/png');
   }
 
   // ===================================================================
@@ -485,68 +453,42 @@
   const dialBox = $('#dials');
   DEFS.forEach((def) => { dialBox.appendChild(buildDial(def)); updateDial(def); setupDial(def); });
 
-  $('#textInput').addEventListener('input', (e) => { $('#wordSrc').textContent = e.target.value || ' '; });
+  $('#textInput').addEventListener('input', (e) => { state.text = e.target.value; rebuildField(); if (!running) drawStatic(); });
+  $('#textColor').addEventListener('input', (e) => { state.textColor = e.target.value; $('#textHex').textContent = e.target.value; buildBase(); if (!running) drawStatic(); });
 
-  $('#textColor').addEventListener('input', (e) => {
-    state.textColor = e.target.value; $('#textHex').textContent = e.target.value; render();
-  });
-
-  // background mode
   $('#bgSeg').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     state.bgMode = b.dataset.mode;
     [...$('#bgSeg').children].forEach((c) => c.classList.toggle('active', c === b));
     $('#bgColorRow').style.display = state.bgMode === 'color' ? '' : 'none';
     $('#bgImageRow').style.display = state.bgMode === 'image' ? '' : 'none';
-    applyBg();
+    buildBg(); if (!running) drawStatic();
   });
-  $('#bgColor').addEventListener('input', (e) => {
-    state.bgColor = e.target.value; $('#bgHex').textContent = e.target.value; applyBg();
-  });
+  $('#bgColor').addEventListener('input', (e) => { state.bgColor = e.target.value; $('#bgHex').textContent = e.target.value; buildBg(); if (!running) drawStatic(); });
   $('#uploadBtn').addEventListener('click', () => $('#bgFile').click());
   $('#bgFile').addEventListener('change', (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      state.bgImage = reader.result;
-      $('#fileName').textContent = file.name;
-      applyBg();
-    };
+    reader.onload = () => { const im = new Image(); im.onload = () => { bgImg = im; buildBg(); if (!running) drawStatic(); }; im.src = reader.result; state.bgImage = reader.result; $('#fileName').textContent = file.name; };
     reader.readAsDataURL(file);
   });
 
-  // coordinate fields
-  const bindCoord = (id, key) => {
-    const el = $('#' + id);
-    el.addEventListener('input', () => {
-      const v = parseFloat(el.value);
-      state[key] = isNaN(v) ? 0 : v; render();
-    });
-  };
-  bindCoord('posX', 'posX');
-  bindCoord('posY', 'posY');
+  const bindCoord = (id, key) => { const el = $('#' + id); el.addEventListener('input', () => { const v = parseFloat(el.value); state[key] = isNaN(v) ? 0 : v; rebuildField(); if (!running) drawStatic(); }); };
+  bindCoord('posX', 'posX'); bindCoord('posY', 'posY');
 
   $('#play').addEventListener('click', () => setPlay(!state.play));
-  $('#download').addEventListener('click', download);
+  $('#download').addEventListener('click', exportPNG);
 
   $('#randomize').addEventListener('click', () => {
-    state.amount  = 4 + Math.random() * 22;
-    state.feather = Math.random() * 60;
-    state.posX = Math.round((Math.random() - 0.5) * 220);
-    state.posY = Math.round((Math.random() - 0.5) * 240);
+    state.amount = 6 + Math.random() * 34; state.feather = Math.random() * 50;
+    state.posX = Math.round((Math.random() - 0.5) * 200); state.posY = Math.round((Math.random() - 0.5) * 220);
     $('#posX').value = state.posX; $('#posY').value = state.posY;
-    if (state.bgMode === 'color') {
-      state.bgColor = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
-      $('#bgColor').value = state.bgColor; $('#bgHex').textContent = state.bgColor; applyBg();
-    }
-    DEFS.forEach(updateDial);
-    render();
+    if (state.bgMode === 'color') { state.bgColor = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'); $('#bgColor').value = state.bgColor; $('#bgHex').textContent = state.bgColor; buildBg(); }
+    DEFS.forEach(updateDial); rebuildField(); if (!running) drawStatic();
   });
 
   // init
-  applyBg();
-  applyMode();
-  render();
+  buildBg(); rebuildField(); drawStatic();
 })();
 </script>
 </body>

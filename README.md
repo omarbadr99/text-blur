@@ -1,10 +1,10 @@
 # Text Blur — Gooey Type Studio
 
-A tiny, dependency-free tool for making the "gooey" blurred-wordmark effect:
-white type that melts and morphs over a soft colour blob, with **dials** to
-control everything live.
+A tiny, dependency-free tool for making a fluid "gooey" wordmark: type that
+liquefies and flows under your cursor like merging droplets, with live dials
+to control it.
 
-![reference vibe](https://img.shields.io/badge/effect-gooey%20blur-e2580f)
+![effect](https://img.shields.io/badge/effect-liquid%20metaball-e2580f)
 
 ## Use it
 
@@ -18,24 +18,26 @@ Just open `index.html` in any modern browser. There is no build step.
 | **Text colour** | Fill colour of the wordmark |
 | **Background** | **None** (transparent, the default) · **Colour** (solid fill) · **Image** (upload your own) |
 | **Position X / Y** | Figma-style number fields to place the wordmark |
-| **Amount** | Gaussian blur strength — higher melts letters together |
-| **Feather** | Softens the gooey threshold; low = crisp blob edges, high = soft glow |
-| **Play** | The word stays fixed and crisp; a soft lens that follows your cursor melts only the area you hover over, fading back to sharp as you move away |
+| **Amount** | How far the liquid spreads — higher merges more letters into one mark |
+| **Feather** | How soft the liquid edge is (low = crisp solid blobs, high = softer) |
+| **Play** | With Play **off** the whole word melts by *Amount*. With Play **on** the word is crisp until you move your cursor over it — the letters near the cursor liquefy and flow, merging and pulling apart, then settle back as you move away |
 
 Plus a **Surprise me** randomiser and **Download PNG** (exports at 1600 × 2000;
 transparency is preserved when the background is *None*).
 
 ## How it works
 
-The morphing look is the classic SVG *gooey* filter:
+The effect is a **metaball** rendered on a `<canvas>` (no SVG masks), which is
+what makes it read as one continuous liquid surface instead of a layer:
 
-1. `feGaussianBlur` spreads the glyphs (the **Amount** dial).
-2. `feColorMatrix` sharpens the alpha channel back into a hard edge — the
-   contrast of that step is the **Feather** dial (full contrast = crisp
-   gooey blob, no contrast = soft feathered glow).
-3. `feComposite … atop` lays the original crisp text over the goo so the
-   centres stay readable while the edges merge.
+1. The glyphs are rasterised to a coverage field, and a blurred copy of that
+   field is computed (the spread is the **Amount** dial).
+2. Per pixel, the crisp and blurred coverage are **blended** by a smooth
+   weight, then **thresholded**. Because the threshold runs *after* the blend,
+   the visible edges follow the ink (forming merged blobs) rather than any
+   blend boundary — so there is no mask/spotlight look.
+3. In Play mode the blend weight is a soft falloff that follows the cursor,
+   plus animated value-noise so the liquid edges wobble and flow. The
+   influence fades in and out with the cursor ("comes and goes").
 
-The blob is a blurred radial gradient and the paper grain is `feTurbulence`,
-so the whole thing is a single self-contained SVG that rasterises cleanly on
-export.
+Everything is one self-contained file with no dependencies or build step.
