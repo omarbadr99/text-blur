@@ -3,174 +3,256 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Text Blur — Gooey Type Studio</title>
+<title>Text Blur</title>
 <style>
   :root {
-    --ink: #1c1714; --panel: #fff; --line: #e7ddcd; --accent: #e2580f;
-    --muted: #8c8275; --field: #fbf8f2; --shadow: 0 10px 30px rgba(40,25,10,.12);
+    --bg: #f3f3f5; --card: #ffffff; --line: #e7e7ea; --ink: #18181b;
+    --muted: #9a9aa3; --soft: #6f6f78; --accent: #2f6df6; --accentSoft: #e7effe;
+    --field: #fafafb; --radius: 14px;
   }
   * { box-sizing: border-box; }
-  html, body { height: 100%; }
+  html, body { height: 100%; margin: 0; }
   body {
-    margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: var(--ink); background: #ece2d2;
-    display: grid; grid-template-columns: 1fr 360px; height: 100vh; overflow: hidden;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink); background: var(--bg); height: 100vh; overflow: hidden;
+    display: flex; flex-direction: column;
   }
-  .stage { display: grid; place-items: center; padding: 28px; min-width: 0; }
+
+  /* ---------- top bar ---------- */
+  .topbar {
+    height: 52px; flex: 0 0 52px; background: var(--card); border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 14px; }
+  .brand .logo { width: 18px; height: 18px; border-radius: 5px; background: var(--ink); }
+  .top-actions { display: flex; align-items: center; gap: 8px; }
+  .topbtn {
+    height: 34px; padding: 0 16px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--card); color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; transition: background .15s, border-color .15s, color .15s;
+  }
+  .topbtn:hover { border-color: #d4d4da; }
+  .topbtn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .topbtn.primary:hover { filter: brightness(1.05); }
+  .topbtn.playing { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  /* ---------- workspace ---------- */
+  .workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: 78px 1fr 320px; }
+
+  /* ---------- left rail ---------- */
+  .rail { background: var(--card); border-right: 1px solid var(--line); padding: 14px 10px; overflow-y: auto; }
+  .rail-label { font-size: 10px; letter-spacing: .09em; color: var(--muted); text-align: center; margin-bottom: 12px; font-weight: 600; }
+  .effect {
+    width: 100%; border: 1px solid var(--line); background: var(--field); border-radius: 12px;
+    padding: 8px 6px 7px; margin-bottom: 10px; cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; transition: border-color .15s, background .15s;
+  }
+  .effect:hover { border-color: #d4d4da; }
+  .effect.active { border-color: var(--accent); background: var(--accentSoft); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .effect.locked { opacity: .5; cursor: default; }
+  .effect.locked:hover { border-color: var(--line); }
+  .ethumb {
+    width: 46px; height: 38px; border-radius: 8px; background: #11203a; overflow: hidden;
+    display: grid; place-items: center;
+  }
+  .ethumb span { color: #fff; font-weight: 800; font-size: 19px; filter: blur(2.4px); letter-spacing: -1px; }
+  .effect .elabel { font-size: 11px; font-weight: 600; color: var(--soft); }
+  .effect.active .elabel { color: var(--accent); }
+  .effect.add { align-items: center; justify-content: center; color: var(--muted); font-size: 20px; min-height: 44px; }
+
+  /* ---------- center stage ---------- */
+  .stage { min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 22px; gap: 14px; }
   .frame {
-    position: relative; width: min(100%, 70vh); aspect-ratio: 800 / 1000;
-    border-radius: 22px; overflow: hidden; box-shadow: var(--shadow); background: #fff;
+    position: relative; border-radius: 16px; overflow: hidden; background: #11203a;
+    box-shadow: 0 10px 34px rgba(20,18,30,.12); cursor: move;
   }
+  .frame.playing { cursor: crosshair; }
   .frame.transparent {
     background-color: #fff;
     background-image:
-      linear-gradient(45deg, #e9e2d6 25%, transparent 25%),
-      linear-gradient(-45deg, #e9e2d6 25%, transparent 25%),
-      linear-gradient(45deg, transparent 75%, #e9e2d6 75%),
-      linear-gradient(-45deg, transparent 75%, #e9e2d6 75%);
-    background-size: 24px 24px; background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      linear-gradient(45deg, #e3e3e7 25%, transparent 25%), linear-gradient(-45deg, #e3e3e7 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #e3e3e7 75%), linear-gradient(-45deg, transparent 75%, #e3e3e7 75%);
+    background-size: 22px 22px; background-position: 0 0, 0 11px, 11px -11px, -11px 0;
   }
-  .frame.playing { cursor: crosshair; }
   canvas.canvas { display: block; width: 100%; height: 100%; }
+  .ratios { display: flex; gap: 8px; align-items: flex-end; }
+  .ratio { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+  .ratio .glyph {
+    border: 1.5px solid #cfcfd6; border-radius: 4px; background: var(--card);
+    transition: border-color .15s, background .15s;
+  }
+  .ratio:hover .glyph { border-color: #aaa; }
+  .ratio.active .glyph { border-color: var(--ink); background: var(--ink); }
+  .ratio .rlabel { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .ratio.active .rlabel { color: var(--ink); }
 
-  .panel {
-    background: var(--panel); border-left: 1px solid var(--line);
-    padding: 22px 22px 28px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px;
+  /* ---------- right panel ---------- */
+  .panel { background: var(--card); border-left: 1px solid var(--line); overflow-y: auto; padding: 0; }
+  .section { padding: 16px; border-bottom: 1px solid var(--line); }
+  .section h2 { margin: 0 0 13px; font-size: 11px; letter-spacing: .08em; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+
+  input.textInput, select.textInput {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px;
+    font-size: 14px; font-weight: 600; color: var(--ink); background: var(--field); outline: none;
   }
-  .brand { display: flex; align-items: baseline; gap: 8px; }
-  .brand h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
-  .brand span { font-size: 12px; color: var(--muted); }
-  label.cap { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 8px; }
-  input[type="text"].textInput {
-    width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
-    font-size: 15px; font-weight: 600; color: var(--ink); background: var(--field); outline: none;
-  }
-  input[type="text"].textInput:focus { border-color: var(--accent); }
-  select.textInput {
-    width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
-    font-size: 14px; font-weight: 600; color: var(--ink); background: var(--field);
-    outline: none; cursor: pointer; appearance: none;
+  select.textInput { appearance: none; cursor: pointer;
     background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+    background-position: calc(100% - 17px) 52%, calc(100% - 12px) 52%; background-size: 5px 5px; background-repeat: no-repeat; }
+  input.textInput:focus, select.textInput:focus { border-color: var(--accent); }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .miniRow { display: flex; gap: 8px; }
+  .mini {
+    flex: 1; border: 1px solid var(--line); background: var(--field); border-radius: 9px; padding: 8px;
+    font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; text-align: center;
   }
-  select.textInput:focus { border-color: var(--accent); }
+  .mini:hover { border-color: #d4d4da; }
+  .note { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
   .colorRow { display: flex; align-items: center; gap: 10px; }
-  input[type="color"] { width: 38px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 9px; background: none; cursor: pointer; }
-  .colorRow .hex { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .seg { display: flex; background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
-  .seg button { flex: 1; border: none; background: none; color: var(--muted); padding: 7px 6px; font-size: 12px; font-weight: 600; border-radius: 7px; cursor: pointer; }
-  .seg button.active { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  .uploadBtn { width: 100%; border: 1px dashed var(--line); background: var(--field); border-radius: 10px; padding: 12px; font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; }
-  .uploadBtn:hover { border-color: var(--accent); }
-  .fileName { font-size: 11px; color: var(--muted); margin-top: 6px; word-break: break-all; }
-  .coords { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .coord { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--field); padding: 0 10px; }
-  .coord:focus-within { border-color: var(--accent); }
-  .coord .axis { font-size: 12px; font-weight: 700; color: var(--muted); width: 12px; }
-  .coord input { border: none; background: none; outline: none; width: 100%; padding: 9px 0; font-size: 14px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
-  .dials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .dial { display: flex; flex-direction: column; align-items: center; gap: 8px; user-select: none; }
-  .knob { position: relative; width: 84px; height: 84px; touch-action: none; cursor: ns-resize; }
-  .knob svg { display: block; width: 100%; height: 100%; }
-  .knob .val { position: absolute; inset: 0; display: grid; place-items: center; font-size: 17px; font-weight: 700; pointer-events: none; }
-  .dial .name { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
-  .row { display: flex; gap: 10px; }
-  button.btn { flex: 1; border: 1px solid var(--line); background: var(--field); color: var(--ink); border-radius: 10px; padding: 11px 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s; }
-  button.btn:hover { border-color: var(--accent); }
-  button.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  button.btn.primary:hover { filter: brightness(1.05); }
-  button.btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
-  .hint { font-size: 11px; color: var(--muted); line-height: 1.5; }
-  .group { display: flex; flex-direction: column; gap: 10px; }
-  @media (max-width: 820px) {
-    body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
-    .panel { border-left: none; border-top: 1px solid var(--line); }
-    .frame { width: min(86vw, 52vh); }
+  input[type="color"] { width: 34px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; cursor: pointer; }
+  .hex { font-size: 12px; color: var(--soft); font-variant-numeric: tabular-nums; }
+
+  /* sliders (monolith-style) */
+  .slider { margin-bottom: 4px; }
+  .slider .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+  .slider .head .lab { font-size: 13px; font-weight: 600; }
+  .slider .head .val { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 16px; background: transparent; cursor: pointer; }
+  input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--line); }
+  input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line); }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 1px solid #c8c8d0; box-shadow: 0 1px 2px rgba(0,0,0,.18); margin-top: -6px; }
+  input[type="range"]::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 1px solid #c8c8d0; box-shadow: 0 1px 2px rgba(0,0,0,.18); }
+
+  /* swatches */
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw { width: 28px; height: 28px; border-radius: 8px; border: 1px solid rgba(0,0,0,.12); cursor: pointer; position: relative; padding: 0; }
+  .sw.sel { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent); }
+  .sw.none {
+    background-color: #fff;
+    background-image: linear-gradient(45deg,#dcdce1 25%,transparent 25%),linear-gradient(-45deg,#dcdce1 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#dcdce1 75%),linear-gradient(-45deg,transparent 75%,#dcdce1 75%);
+    background-size: 10px 10px; background-position: 0 0,0 5px,5px -5px,-5px 0;
   }
+  .sw.custom { overflow: hidden; }
+  .sw.custom input { position: absolute; inset: -6px; width: 200%; height: 200%; border: none; padding: 0; cursor: pointer; }
+
+  /* dials */
+  .dials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .dial { display: flex; flex-direction: column; align-items: center; gap: 7px; user-select: none; }
+  .knob { position: relative; width: 78px; height: 78px; touch-action: none; cursor: ns-resize; }
+  .knob svg { display: block; width: 100%; height: 100%; }
+  .knob .kval { position: absolute; inset: 0; display: grid; place-items: center; font-size: 16px; font-weight: 700; pointer-events: none; }
+  .dial .kname { font-size: 11px; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+
+  .coords { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .coord { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); padding: 0 9px; }
+  .coord:focus-within { border-color: var(--accent); }
+  .coord .axis { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .coord input { border: none; background: none; outline: none; width: 100%; padding: 8px 0; font-size: 13px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .linkbtn { background: none; border: none; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; padding: 0; }
 </style>
 </head>
 <body>
-  <div class="stage">
-    <div class="frame transparent" id="frame">
-      <canvas class="canvas" id="canvas"></canvas>
+  <header class="topbar">
+    <div class="brand"><span class="logo"></span> text blur</div>
+    <div class="top-actions">
+      <button class="topbtn" id="play">▶ Play</button>
+      <button class="topbtn primary" id="download">Export</button>
     </div>
-  </div>
+  </header>
 
-  <aside class="panel">
-    <div class="brand"><h1>Text Blur</h1><span>gooey type studio</span></div>
+  <div class="workspace">
+    <!-- EFFECTS -->
+    <nav class="rail">
+      <div class="rail-label">EFFECTS</div>
+      <button class="effect active" data-effect="blur">
+        <span class="ethumb"><span>Ab</span></span>
+        <span class="elabel">Blur</span>
+      </button>
+      <button class="effect add locked" title="More effects coming soon">+</button>
+    </nav>
 
-    <div class="group">
-      <label class="cap" for="textInput">Text</label>
-      <input id="textInput" class="textInput" type="text" value="Nocaff" maxlength="24" autocomplete="off" spellcheck="false"/>
-    </div>
+    <!-- STAGE -->
+    <section class="stage" id="stage">
+      <div class="frame transparent" id="frame"><canvas class="canvas" id="canvas"></canvas></div>
+      <div class="ratios" id="ratios"></div>
+    </section>
 
-    <div class="group">
-      <label class="cap" for="fontSelect">Font</label>
-      <select id="fontSelect" class="textInput"></select>
-      <div class="row">
-        <button class="btn" id="loadFonts">Use my computer’s fonts</button>
-        <button class="btn" id="uploadFont">Upload…</button>
+    <!-- CONTROLS -->
+    <aside class="panel">
+      <div class="section">
+        <h2>Text</h2>
+        <div class="stack">
+          <input id="textInput" class="textInput" type="text" value="Blur" maxlength="24" autocomplete="off" spellcheck="false"/>
+          <select id="fontSelect" class="textInput"></select>
+          <div class="miniRow">
+            <button class="mini" id="loadFonts">Use my computer’s fonts</button>
+            <button class="mini" id="uploadFont">Upload…</button>
+          </div>
+          <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2,font/*" hidden/>
+          <div class="colorRow"><input type="color" id="textColor" value="#1c1714"/><span class="hex" id="textHex">#1c1714</span></div>
+          <div class="note" id="fontNote">Heavy / bold fonts melt best.</div>
+        </div>
       </div>
-      <input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2,font/*" hidden/>
-      <div class="fileName" id="fontNote">Heavy / bold fonts melt best.</div>
-    </div>
 
-    <div class="group">
-      <label class="cap">Text colour</label>
-      <div class="colorRow"><input type="color" id="textColor" value="#1c1714"/><span class="hex" id="textHex">#1c1714</span></div>
-    </div>
-
-    <div class="group">
-      <label class="cap">Background</label>
-      <div class="seg" id="bgSeg">
-        <button data-mode="none" class="active">None</button>
-        <button data-mode="color">Colour</button>
-        <button data-mode="image">Image</button>
+      <div class="section">
+        <h2>Blur</h2>
+        <div class="dials" id="dials"></div>
       </div>
-      <div class="colorRow" id="bgColorRow" style="display:none"><input type="color" id="bgColor" value="#e2580f"/><span class="hex" id="bgHex">#e2580f</span></div>
-      <div id="bgImageRow" style="display:none">
-        <button class="uploadBtn" id="uploadBtn">Upload an image…</button>
+
+      <div class="section">
+        <h2>Background</h2>
+        <div class="swatches" id="bgSwatches">
+          <button class="sw none sel" data-bg="none" title="Transparent"></button>
+          <button class="sw" data-bg="color" data-color="#0b0b0c" style="background:#0b0b0c"></button>
+          <button class="sw" data-bg="color" data-color="#ece7da" style="background:#ece7da"></button>
+          <button class="sw" data-bg="color" data-color="#14233b" style="background:#14233b"></button>
+          <button class="sw" data-bg="color" data-color="#3a2218" style="background:#3a2218"></button>
+          <button class="sw" data-bg="color" data-color="#1f3a2a" style="background:#1f3a2a"></button>
+          <button class="sw custom" data-bg="custom" title="Custom colour"><input type="color" id="bgColor" value="#e2580f"/></button>
+        </div>
+        <div class="miniRow" style="margin-top:10px"><button class="mini" id="uploadBtn">Upload image…</button></div>
         <input type="file" id="bgFile" accept="image/*" hidden/>
-        <div class="fileName" id="fileName"></div>
+        <div class="note" id="fileName">Baked into every export.</div>
       </div>
-    </div>
 
-    <div class="group">
-      <label class="cap">Position</label>
-      <div class="coords">
-        <div class="coord"><span class="axis">X</span><input id="posX" type="number" value="0" step="1"/></div>
-        <div class="coord"><span class="axis">Y</span><input id="posY" type="number" value="0" step="1"/></div>
+      <div class="section">
+        <h2>Placement</h2>
+        <div class="stack">
+          <div class="slider">
+            <div class="head"><span class="lab">Size</span><span class="val" id="sizeVal">40%</span></div>
+            <input type="range" id="sizeRange" min="10" max="90" value="40" step="1"/>
+          </div>
+          <div class="coords">
+            <div class="coord"><span class="axis">X</span><input id="posX" type="number" value="0" step="1"/></div>
+            <div class="coord"><span class="axis">Y</span><input id="posY" type="number" value="0" step="1"/></div>
+          </div>
+          <div class="note">Drag the text in the frame to position it. <button class="linkbtn" id="centerBtn">Re-center</button></div>
+        </div>
       </div>
-    </div>
 
-    <div class="dials" id="dials"></div>
-
-    <button class="btn" id="play">▶ Play — liquid follows cursor</button>
-
-    <div class="row">
-      <button class="btn" id="randomize">Surprise me</button>
-      <button class="btn primary" id="download">Download PNG</button>
-    </div>
-
-    <p class="hint">With <b>Play</b> off, <b>Amount</b> melts the whole word into one gooey
-      mark. Hit <b>Play</b> and the word is crisp until you move your cursor over it — the
-      letters liquefy and flow toward the cursor, merging and pulling apart, then settle
-      back as you move away. <b>Feather</b> sets how soft the liquid edge is.</p>
-  </aside>
+      <div class="section">
+        <h2>Motion</h2>
+        <div class="note" style="margin-top:0">Press <b>Play</b> (top bar) and move your cursor over the word — the
+          letters liquefy and flow toward it, then settle back. With Play off, <b>Amount</b> melts the whole word.</div>
+        <div class="miniRow" style="margin-top:12px"><button class="mini" id="randomize">Surprise me</button></div>
+      </div>
+    </aside>
+  </div>
 
 <script>
 (() => {
   const $ = (s) => document.querySelector(s);
 
-  const VB_W = 800, VB_H = 1000;       // logical design space (aspect ratio)
-  const THR = 0.34;                     // metaball threshold (low enough that blobs stay solid as they merge)
-  const MAXW = 1600;                    // cap on the device-pixel field width
+  const VB_LONG = 1000;                  // logical long edge
+  let VB_W = 1000, VB_H = 562;           // logical design space (16:9 default)
+  const THR = 0.34;                      // metaball threshold
+  const MAXW = 1600;                     // cap on device-pixel field width
 
   const state = {
-    text: 'Nocaff', textColor: '#1c1714', fontFamily: 'Arial Black',
-    posX: 0, posY: 0, amount: 8, feather: 18,
+    text: 'Blur', textColor: '#1c1714', fontFamily: 'Arial Black',
+    posX: 0, posY: 0, size: 40, amount: 8, feather: 18,
     bgMode: 'none', bgColor: '#e2580f', bgImage: null,
-    play: false,
+    play: false, aspectW: 16, aspectH: 9,
   };
 
   const canvas = $('#canvas');
@@ -182,8 +264,7 @@
   const offTxt = document.createElement('canvas');
   const octx = offTxt.getContext('2d');
 
-  // resolution + buffers (allocated by resize() to match the on-screen device-pixel size)
-  let W = 0, H = 0, SCALE = 1;                    // SCALE: device px per VB unit
+  let W = 0, H = 0, SCALE = 1;
   let Acrisp, Ablur, baseRGBA, textImage;
 
   function allocate(w, h) {
@@ -201,16 +282,14 @@
   // ---------- helpers ----------
   const clamp01 = (x) => x < 0 ? 0 : x > 1 ? 1 : x;
   const smoothstep = (e0, e1, x) => { const t = clamp01((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
-  function parseColor(hex) {
-    const n = parseInt(hex.slice(1), 16);
-    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-  }
-  const featherEdge = () => 0.02 + (state.feather / 100) * 0.30; // half-width of the alpha ramp
+  function parseColor(hex) { const n = parseInt(hex.slice(1), 16); return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 }; }
+  const featherEdge = () => 0.02 + (state.feather / 100) * 0.30;
+  const fontPx = () => (state.size / 100) * VB_LONG * 0.42;
   const fontString = (px) => `900 ${px}px "${state.fontFamily}", 'Helvetica Neue', Helvetica, Arial, sans-serif`;
 
-  // ---------- value noise (for the liquid wobble) ----------
+  // ---------- value noise ----------
   const GW = 26, GH = 32;
-  let NCELL = W / GW;
+  let NCELL = 40;
   const ng = new Float32Array(GW * GH);
   for (let i = 0; i < ng.length; i++) ng[i] = Math.random();
   function sampleNoise(u, v) {
@@ -229,12 +308,13 @@
     octx.setTransform(1, 0, 0, 1, 0, 0);
     octx.clearRect(0, 0, W, H);
     octx.save();
-    octx.scale(SCALE, SCALE);            // draw in VB coords at device resolution
+    octx.scale(SCALE, SCALE);
     octx.fillStyle = '#fff';
     octx.textAlign = 'center'; octx.textBaseline = 'middle';
-    octx.font = fontString(150);
-    try { octx.letterSpacing = '-6px'; } catch (e) {}
-    octx.fillText(state.text || ' ', 400 + state.posX, 500 + state.posY);
+    const fp = fontPx();
+    octx.font = fontString(fp);
+    try { octx.letterSpacing = (-0.04 * fp) + 'px'; } catch (e) {}
+    octx.fillText(state.text || ' ', VB_W / 2 + state.posX, VB_H / 2 + state.posY);
     octx.restore();
     const d = octx.getImageData(0, 0, W, H).data;
     for (let i = 0; i < W * H; i++) Acrisp[i] = d[i * 4 + 3] / 255;
@@ -245,12 +325,7 @@
     for (let y = 0; y < h; y++) {
       const row = y * w; let acc = 0;
       for (let x = -r; x <= r; x++) acc += src[row + Math.min(w - 1, Math.max(0, x))];
-      for (let x = 0; x < w; x++) {
-        dst[row + x] = acc * norm;
-        const add = src[row + Math.min(w - 1, x + r + 1)];
-        const sub = src[row + Math.max(0, x - r)];
-        acc += add - sub;
-      }
+      for (let x = 0; x < w; x++) { dst[row + x] = acc * norm; acc += src[row + Math.min(w - 1, x + r + 1)] - src[row + Math.max(0, x - r)]; }
     }
   }
   function boxPassV(src, dst, w, h, r) {
@@ -258,12 +333,7 @@
     for (let x = 0; x < w; x++) {
       let acc = 0;
       for (let y = -r; y <= r; y++) acc += src[Math.min(h - 1, Math.max(0, y)) * w + x];
-      for (let y = 0; y < h; y++) {
-        dst[y * w + x] = acc * norm;
-        const add = src[Math.min(h - 1, y + r + 1) * w + x];
-        const sub = src[Math.max(0, y - r) * w + x];
-        acc += add - sub;
-      }
+      for (let y = 0; y < h; y++) { dst[y * w + x] = acc * norm; acc += src[Math.min(h - 1, y + r + 1) * w + x] - src[Math.max(0, y - r) * w + x]; }
     }
   }
   function computeBlur() {
@@ -276,15 +346,12 @@
 
   function buildBase() {
     const { r, g, b } = parseColor(state.textColor);
-    const e = featherEdge(), thr = THR, melt = !state.play; // Play off => whole word melts
+    const e = featherEdge(), thr = THR, melt = !state.play;
     for (let i = 0; i < W * H; i++) {
-      // Solid, opaque shape via threshold. Play on rest = threshold(crisp glyph);
-      // Play off = threshold(merged/blurred field).
       const a = smoothstep(thr - e, thr + e, melt ? Ablur[i] : Acrisp[i]) * 255;
       const o = i * 4; baseRGBA[o] = r; baseRGBA[o + 1] = g; baseRGBA[o + 2] = b; baseRGBA[o + 3] = a;
     }
   }
-
   function rebuildField() { renderTextAlpha(); computeBlur(); buildBase(); }
 
   // ---------- background ----------
@@ -294,8 +361,7 @@
     $('#frame').classList.toggle('transparent', state.bgMode === 'none');
     if (state.bgMode === 'color') { bgctx.fillStyle = state.bgColor; bgctx.fillRect(0, 0, W, H); }
     else if (state.bgMode === 'image' && bgImg) {
-      const s = Math.max(W / bgImg.width, H / bgImg.height);
-      const w = bgImg.width * s, h = bgImg.height * s;
+      const s = Math.max(W / bgImg.width, H / bgImg.height), w = bgImg.width * s, h = bgImg.height * s;
       bgctx.drawImage(bgImg, (W - w) / 2, (H - h) / 2, w, h);
     }
   }
@@ -306,33 +372,22 @@
     if (state.bgMode !== 'none') ctx.drawImage(bgCanvas, 0, 0);
     ctx.drawImage(textCanvas, 0, 0);
   }
-  function drawStatic() {           // rest state (no cursor influence)
-    textImage.data.set(baseRGBA);
-    tctx.putImageData(textImage, 0, 0);
-    compose();
-    prev = null;
-  }
-  // restore a rectangle of the working buffer back to the rest state
+  function drawStatic() { textImage.data.set(baseRGBA); tctx.putImageData(textImage, 0, 0); compose(); prev = null; }
   function restoreRect(x0, y0, x1, y1) {
     const wd = textImage.data;
-    for (let y = y0; y < y1; y++) {
-      const off = (y * W + x0) * 4, end = (y * W + x1) * 4;
-      wd.set(baseRGBA.subarray(off, end), off);
-    }
+    for (let y = y0; y < y1; y++) { const off = (y * W + x0) * 4, end = (y * W + x1) * 4; wd.set(baseRGBA.subarray(off, end), off); }
   }
 
   // ---------- interaction loop ----------
   const NOISE_AMP = 0.55, SCROLL_X = 14, SCROLL_Y = 9;
-  let reach = 0.2 * W, invr2 = 1 / (reach * reach); // finite-support influence radius
+  let reach = 200, invr2 = 1 / (200 * 200);
   let hover = false, running = false, raf = null, prev = null;
-  let tcx = W / 2, tcy = H / 2, cx = W / 2, cy = H / 2, s = 0;
+  let tcx = 0, tcy = 0, cx = 0, cy = 0, s = 0;
 
   function frame() {
     const t = performance.now() / 1000;
-    const targetS = hover ? 1 : 0;
-    s += (targetS - s) * 0.10;
+    s += ((hover ? 1 : 0) - s) * 0.10;
     cx += (tcx - cx) * 0.28; cy += (tcy - cy) * 0.28;
-
     if (!hover && s < 0.004) { running = false; s = 0; drawStatic(); return; }
 
     const { r, g, b } = parseColor(state.textColor);
@@ -342,7 +397,6 @@
     const nox = t * SCROLL_X, noy = t * SCROLL_Y;
     const wd = textImage.data;
 
-    // restore last frame's touched region (and this frame's) to the rest state
     if (prev) restoreRect(Math.min(prev[0], x0), Math.min(prev[1], y0), Math.max(prev[2], x1), Math.max(prev[3], y1));
     else restoreRect(x0, y0, x1, y1);
 
@@ -350,15 +404,11 @@
       const dy = y - cy, dy2 = dy * dy, rowi = y * W;
       for (let x = x0; x < x1; x++) {
         const dx = x - cx;
-        const q = (dx * dx + dy2) * invr2;    // 0 at centre → 1 at reach
+        const q = (dx * dx + dy2) * invr2;
         if (q >= 1) continue;
-        const f = 1 - q, m = s * f * f;       // smooth finite-support influence (no exp)
-        if (m < 0.004) continue;             // rest pixel already restored to vector text
+        const f = 1 - q, m = s * f * f;
+        if (m < 0.004) continue;
         const i = rowi + x;
-        // ONE morphing shape: coverage grows from the crisp glyph toward the
-        // blurred (merged) field by m, with a little wobble, then a single
-        // threshold -> solid opaque fill with a crisp edge (no transparent halo,
-        // no cross-fade between shapes => no mask/lens).
         let cov = Acrisp[i] + (Ablur[i] - Acrisp[i]) * m;
         cov += (sampleNoise(x + nox, y + noy) - 0.5) * NOISE_AMP * m;
         const a = smoothstep(thr - e, thr + e, cov) * 255;
@@ -374,94 +424,102 @@
   }
   function startLoop() { if (!running) { running = true; drawStatic(); raf = requestAnimationFrame(frame); } }
 
+  // ---------- pointer: liquid (play) or drag-to-position ----------
   const frameEl = $('#frame');
-  frameEl.addEventListener('pointermove', (e) => {
-    if (!state.play) return;
+  let dragging = null;
+  frameEl.addEventListener('pointerdown', (e) => {
+    if (state.play) return;
     const rect = frameEl.getBoundingClientRect();
-    tcx = ((e.clientX - rect.left) / rect.width) * W;
-    tcy = ((e.clientY - rect.top) / rect.height) * H;
-    hover = true; startLoop();
+    dragging = { x: e.clientX, y: e.clientY, px: state.posX, py: state.posY, vpp: VB_W / rect.width };
+    frameEl.setPointerCapture(e.pointerId);
   });
-  frameEl.addEventListener('pointerleave', () => { hover = false; });
+  frameEl.addEventListener('pointermove', (e) => {
+    const rect = frameEl.getBoundingClientRect();
+    if (state.play) {
+      tcx = ((e.clientX - rect.left) / rect.width) * W;
+      tcy = ((e.clientY - rect.top) / rect.height) * H;
+      hover = true; startLoop(); return;
+    }
+    if (!dragging) return;
+    state.posX = dragging.px + (e.clientX - dragging.x) * dragging.vpp;
+    state.posY = dragging.py + (e.clientY - dragging.y) * dragging.vpp;
+    $('#posX').value = Math.round(state.posX); $('#posY').value = Math.round(state.posY);
+    rebuildField(); drawStatic();
+  });
+  frameEl.addEventListener('pointerup', () => { dragging = null; });
+  frameEl.addEventListener('pointerleave', () => { hover = false; dragging = null; });
 
   function setPlay(on) {
     state.play = on;
     const btn = $('#play');
-    btn.classList.toggle('active', on);
-    btn.textContent = on ? '⏸ Stop' : '▶ Play — liquid follows cursor';
+    btn.classList.toggle('playing', on);
+    btn.textContent = on ? '⏸ Stop' : '▶ Play';
     frameEl.classList.toggle('playing', on);
     hover = false; s = 0;
     if (running) { cancelAnimationFrame(raf); running = false; }
-    buildBase();
-    drawStatic();
+    buildBase(); drawStatic();
   }
 
   // ===================================================================
-  //  Dials (Amount + Feather)  — unchanged knob widget
+  //  Dials (Amount + Feather)
   // ===================================================================
   const DEFS = [
     { key: 'amount',  name: 'Amount',  min: 0, max: 40,  def: 8  },
     { key: 'feather', name: 'Feather', min: 0, max: 100, def: 18 },
   ];
-  const R = 33, CIRC = 2 * Math.PI * R, ARC = 0.78;
+  const R = 31, CIRC = 2 * Math.PI * R, ARC = 0.78;
   function buildDial(def) {
     const wrap = document.createElement('div'); wrap.className = 'dial';
     wrap.innerHTML = `
       <div class="knob" data-key="${def.key}">
-        <svg viewBox="0 0 84 84">
-          <circle cx="42" cy="42" r="${R}" fill="#fbf8f2" stroke="#e7ddcd" stroke-width="6"/>
-          <circle cx="42" cy="42" r="${R}" fill="none" stroke="#ece2d2" stroke-width="6" stroke-linecap="round"
-            stroke-dasharray="${(CIRC*ARC).toFixed(1)} ${CIRC}" transform="rotate(${90+(1-ARC)*180} 42 42)"/>
-          <circle class="prog" cx="42" cy="42" r="${R}" fill="none" stroke="#e2580f" stroke-width="6" stroke-linecap="round"
-            stroke-dasharray="0 ${CIRC}" transform="rotate(${90+(1-ARC)*180} 42 42)"/>
-          <line class="ind" x1="42" y1="42" x2="42" y2="16" stroke="#1c1714" stroke-width="3" stroke-linecap="round"/>
-        </svg><div class="val"></div>
-      </div><div class="name">${def.name}</div>`;
+        <svg viewBox="0 0 78 78">
+          <circle cx="39" cy="39" r="${R}" fill="#fafafb" stroke="#e7e7ea" stroke-width="6"/>
+          <circle cx="39" cy="39" r="${R}" fill="none" stroke="#eee" stroke-width="6" stroke-linecap="round"
+            stroke-dasharray="${(CIRC*ARC).toFixed(1)} ${CIRC}" transform="rotate(${90+(1-ARC)*180} 39 39)"/>
+          <circle class="prog" cx="39" cy="39" r="${R}" fill="none" stroke="#2f6df6" stroke-width="6" stroke-linecap="round"
+            stroke-dasharray="0 ${CIRC}" transform="rotate(${90+(1-ARC)*180} 39 39)"/>
+          <line class="ind" x1="39" y1="39" x2="39" y2="15" stroke="#18181b" stroke-width="3" stroke-linecap="round"/>
+        </svg><div class="kval"></div>
+      </div><div class="kname">${def.name}</div>`;
     return wrap;
   }
   function updateDial(def) {
     const knob = document.querySelector(`.knob[data-key="${def.key}"]`);
     const frac = (state[def.key] - def.min) / (def.max - def.min);
     knob.querySelector('.prog').setAttribute('stroke-dasharray', `${(CIRC*ARC*frac).toFixed(1)} ${CIRC}`);
-    knob.querySelector('.ind').setAttribute('transform', `rotate(${(1-ARC)*180 + frac*ARC*360} 42 42)`);
-    knob.querySelector('.val').textContent = Math.round(state[def.key]);
+    knob.querySelector('.ind').setAttribute('transform', `rotate(${(1-ARC)*180 + frac*ARC*360} 39 39)`);
+    knob.querySelector('.kval').textContent = Math.round(state[def.key]);
   }
   function setupDial(def) {
     const knob = document.querySelector(`.knob[data-key="${def.key}"]`);
     let startY = 0, startVal = 0, dragging = false;
     const onChange = () => { if (def.key === 'amount') computeBlur(); buildBase(); if (!running) drawStatic(); };
-    const move = (e) => {
-      if (!dragging) return;
-      const y = e.touches ? e.touches[0].clientY : e.clientY;
-      state[def.key] = Math.max(def.min, Math.min(def.max, startVal + ((startY - y) / 180) * (def.max - def.min)));
-      updateDial(def); onChange();
-    };
+    const move = (e) => { if (!dragging) return; const y = e.touches ? e.touches[0].clientY : e.clientY;
+      state[def.key] = Math.max(def.min, Math.min(def.max, startVal + ((startY - y) / 180) * (def.max - def.min))); updateDial(def); onChange(); };
     const up = () => { dragging = false; window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up); };
     const down = (e) => { dragging = true; startY = e.touches ? e.touches[0].clientY : e.clientY; startVal = state[def.key];
       window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up); e.preventDefault(); };
     knob.addEventListener('mousedown', down);
     knob.addEventListener('touchstart', down, { passive: false });
     knob.addEventListener('dblclick', () => { state[def.key] = def.def; updateDial(def); onChange(); });
-    knob.addEventListener('wheel', (e) => { e.preventDefault();
-      const step = (def.max - def.min) / 50;
-      state[def.key] = Math.max(def.min, Math.min(def.max, state[def.key] - Math.sign(e.deltaY) * step));
-      updateDial(def); onChange(); }, { passive: false });
+    knob.addEventListener('wheel', (e) => { e.preventDefault(); const step = (def.max - def.min) / 50;
+      state[def.key] = Math.max(def.min, Math.min(def.max, state[def.key] - Math.sign(e.deltaY) * step)); updateDial(def); onChange(); }, { passive: false });
   }
 
   // ===================================================================
-  //  Export — re-render the rest state at high resolution
+  //  Export
   // ===================================================================
   function exportPNG() {
-    const SC = 2, W = VB_W * SC, H = VB_H * SC;
-    const fw = W, fh = H;
+    const SC = Math.round((2000 / VB_LONG) * 100) / 100;
+    const fw = Math.round(VB_W * SC), fh = Math.round(VB_H * SC);
     const oc = document.createElement('canvas'); oc.width = fw; oc.height = fh;
-    const octx2 = oc.getContext('2d');
-    octx2.scale(SC, SC);
-    octx2.fillStyle = '#fff'; octx2.textAlign = 'center'; octx2.textBaseline = 'middle';
-    octx2.font = fontString(150);
-    try { octx2.letterSpacing = '-6px'; } catch (e) {}
-    octx2.fillText(state.text || ' ', 400 + state.posX, 500 + state.posY);
-    const Ac = new Float32Array(fw * fh), data = octx2.getImageData(0, 0, fw, fh).data;
+    const o2 = oc.getContext('2d');
+    o2.scale(SC, SC);
+    o2.fillStyle = '#fff'; o2.textAlign = 'center'; o2.textBaseline = 'middle';
+    const fp = fontPx(); o2.font = fontString(fp);
+    try { o2.letterSpacing = (-0.04 * fp) + 'px'; } catch (e) {}
+    o2.fillText(state.text || ' ', VB_W / 2 + state.posX, VB_H / 2 + state.posY);
+    const Ac = new Float32Array(fw * fh), data = o2.getImageData(0, 0, fw, fh).data;
     for (let i = 0; i < fw * fh; i++) Ac[i] = data[i * 4 + 3] / 255;
     let Ab = Float32Array.from(Ac);
     const r = Math.round(state.amount * SC);
@@ -469,28 +527,44 @@
       for (let p = 0; p < 3; p++) { boxPassH(a, b, fw, fh, r); boxPassV(b, a, fw, fh, r); } Ab = a; }
     const { r: cr, g: cg, b: cb } = parseColor(state.textColor);
     const e = featherEdge(), thr = THR, melt = !state.play;
-    const img = octx2.createImageData(fw, fh), od = img.data;
+    const img = o2.createImageData(fw, fh), od = img.data;
     for (let i = 0; i < fw * fh; i++) {
-      const a = smoothstep(thr - e, thr + e, melt ? Ab[i] : Ac[i]) * 255; // solid threshold
+      const a = smoothstep(thr - e, thr + e, melt ? Ab[i] : Ac[i]) * 255;
       const o = i * 4; od[o] = cr; od[o + 1] = cg; od[o + 2] = cb; od[o + 3] = a;
     }
-    const txt = document.createElement('canvas'); txt.width = fw; txt.height = fh;
-    txt.getContext('2d').putImageData(img, 0, 0);
-
-    const out = document.createElement('canvas'); out.width = W; out.height = H;
-    const octx3 = out.getContext('2d');
-    if (state.bgMode === 'color') { octx3.fillStyle = state.bgColor; octx3.fillRect(0, 0, W, H); }
+    const txt = document.createElement('canvas'); txt.width = fw; txt.height = fh; txt.getContext('2d').putImageData(img, 0, 0);
+    const out = document.createElement('canvas'); out.width = fw; out.height = fh;
+    const o3 = out.getContext('2d');
+    if (state.bgMode === 'color') { o3.fillStyle = state.bgColor; o3.fillRect(0, 0, fw, fh); }
     else if (state.bgMode === 'image' && bgImg) {
-      const sc = Math.max(W / bgImg.width, H / bgImg.height), iw = bgImg.width * sc, ih = bgImg.height * sc;
-      octx3.drawImage(bgImg, (W - iw) / 2, (H - ih) / 2, iw, ih);
+      const sc = Math.max(fw / bgImg.width, fh / bgImg.height), iw = bgImg.width * sc, ih = bgImg.height * sc;
+      o3.drawImage(bgImg, (fw - iw) / 2, (fh - ih) / 2, iw, ih);
     }
-    octx3.drawImage(txt, 0, 0);
-    out.toBlob((png) => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(png);
-      a.download = (state.text || 'text-blur').replace(/\s+/g, '-').toLowerCase() + '.png';
-      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    }, 'image/png');
+    o3.drawImage(txt, 0, 0);
+    out.toBlob((png) => { const a = document.createElement('a'); a.href = URL.createObjectURL(png);
+      a.download = (state.text || 'text-blur').replace(/\s+/g, '-').toLowerCase() + '.png'; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000); }, 'image/png');
+  }
+
+  // ===================================================================
+  //  Aspect ratios
+  // ===================================================================
+  const RATIOS = [ [1,1,'1:1'], [16,9,'16:9'], [9,16,'9:16'], [4,3,'4:3'], [3,4,'3:4'] ];
+  const ratioBox = $('#ratios');
+  RATIOS.forEach(([aw, ah, label]) => {
+    const el = document.createElement('button'); el.className = 'ratio'; el.dataset.w = aw; el.dataset.h = ah;
+    const gw = aw >= ah ? 26 : 26 * aw / ah, gh = ah >= aw ? 18 : 18 * ah / aw;
+    el.innerHTML = `<span class="glyph" style="width:${gw}px;height:${gh}px"></span><span class="rlabel">${label}</span>`;
+    if (aw === state.aspectW && ah === state.aspectH) el.classList.add('active');
+    el.addEventListener('click', () => setAspect(aw, ah, el));
+    ratioBox.appendChild(el);
+  });
+  function setAspect(aw, ah, el) {
+    state.aspectW = aw; state.aspectH = ah;
+    if (aw >= ah) { VB_W = VB_LONG; VB_H = Math.round(VB_LONG * ah / aw); }
+    else { VB_H = VB_LONG; VB_W = Math.round(VB_LONG * aw / ah); }
+    [...ratioBox.children].forEach((c) => c.classList.toggle('active', c === el));
+    resize(true);
   }
 
   // ===================================================================
@@ -501,118 +575,106 @@
 
   $('#textInput').addEventListener('input', (e) => { state.text = e.target.value; rebuildField(); if (!running) drawStatic(); });
 
-  // ----- Font selection -----
+  // Font selection
   const fontSelect = $('#fontSelect'), fontNote = $('#fontNote');
-  const BASE_FONTS = ['Arial Black', 'Impact', 'Helvetica', 'Arial', 'Verdana',
-    'Trebuchet MS', 'Georgia', 'Times New Roman', 'Courier New', 'Comic Sans MS', 'system-ui'];
+  const BASE_FONTS = ['Arial Black', 'Impact', 'Helvetica', 'Arial', 'Verdana', 'Trebuchet MS', 'Georgia', 'Times New Roman', 'Courier New', 'Comic Sans MS', 'system-ui'];
   const knownFonts = new Set();
   function addFontOption(fam, select) {
     if (knownFonts.has(fam)) { if (select) fontSelect.value = fam; return; }
     knownFonts.add(fam);
-    const o = document.createElement('option');
-    o.value = fam; o.textContent = fam;
+    const o = document.createElement('option'); o.value = fam; o.textContent = fam;
     try { o.style.fontFamily = `"${fam}"`; } catch (e) {}
-    fontSelect.appendChild(o);
-    if (select) fontSelect.value = fam;
+    fontSelect.appendChild(o); if (select) fontSelect.value = fam;
   }
   BASE_FONTS.forEach((f) => addFontOption(f));
   fontSelect.value = state.fontFamily;
-
   function useFont(fam) {
-    state.fontFamily = fam;
-    rebuildField(); if (!running) drawStatic();                 // immediate (may fall back for a frame)
-    if (document.fonts && document.fonts.load) {                // re-render once the face is ready
-      document.fonts.load(fontString(150), state.text || 'Ag')
-        .then(() => { rebuildField(); if (!running) drawStatic(); }).catch(() => {});
-    }
+    state.fontFamily = fam; rebuildField(); if (!running) drawStatic();
+    if (document.fonts && document.fonts.load) document.fonts.load(fontString(fontPx()), state.text || 'Ag').then(() => { rebuildField(); if (!running) drawStatic(); }).catch(() => {});
   }
   fontSelect.addEventListener('change', (e) => useFont(e.target.value));
-
-  // Pull in the fonts installed on this computer (Chromium + secure context only)
   $('#loadFonts').addEventListener('click', async () => {
-    if (!window.queryLocalFonts) {
-      fontNote.textContent = 'Your browser can’t list local fonts — use Upload… instead (works everywhere). Chrome or Edge can list them.';
-      return;
-    }
-    try {
-      const fonts = await window.queryLocalFonts();
+    if (!window.queryLocalFonts) { fontNote.textContent = 'Your browser can’t list local fonts — use Upload… instead (Chrome or Edge can list them).'; return; }
+    try { const fonts = await window.queryLocalFonts();
       const fams = [...new Set(fonts.map((f) => f.family))].sort((a, b) => a.localeCompare(b));
       fams.forEach((f) => addFontOption(f));
-      fontNote.textContent = `Loaded ${fams.length} fonts from your computer. Heavy / bold fonts melt best.`;
-    } catch (err) {
-      fontNote.textContent = 'Permission denied — allow local font access, or use Upload… instead.';
-    }
+      fontNote.textContent = `Loaded ${fams.length} fonts. Heavy / bold fonts melt best.`;
+    } catch (err) { fontNote.textContent = 'Permission denied — allow local font access, or use Upload… instead.'; }
   });
-
-  // Upload a font file (works in every browser)
-  let customFontN = 0;
   $('#uploadFont').addEventListener('click', () => $('#fontFile').click());
   $('#fontFile').addEventListener('change', async (e) => {
     const file = e.target.files[0]; if (!file) return;
-    try {
-      const buf = await file.arrayBuffer();
-      const fam = file.name.replace(/\.[^.]+$/, '') || ('Custom ' + (++customFontN));
-      const face = new FontFace(fam, buf);
-      await face.load(); document.fonts.add(face);
-      addFontOption(fam, true);
-      fontNote.textContent = `Loaded “${fam}”.`;
-      useFont(fam);
-    } catch (err) {
-      fontNote.textContent = 'Could not load that font file (try .ttf, .otf or .woff).';
-    }
+    try { const buf = await file.arrayBuffer(); const fam = file.name.replace(/\.[^.]+$/, '') || 'Custom';
+      const face = new FontFace(fam, buf); await face.load(); document.fonts.add(face);
+      addFontOption(fam, true); fontNote.textContent = `Loaded “${fam}”.`; useFont(fam);
+    } catch (err) { fontNote.textContent = 'Could not load that font file (try .ttf, .otf or .woff).'; }
   });
+
   $('#textColor').addEventListener('input', (e) => { state.textColor = e.target.value; $('#textHex').textContent = e.target.value; buildBase(); if (!running) drawStatic(); });
 
-  $('#bgSeg').addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    state.bgMode = b.dataset.mode;
-    [...$('#bgSeg').children].forEach((c) => c.classList.toggle('active', c === b));
-    $('#bgColorRow').style.display = state.bgMode === 'color' ? '' : 'none';
-    $('#bgImageRow').style.display = state.bgMode === 'image' ? '' : 'none';
-    buildBg(); if (!running) drawStatic();
+  // Background swatches
+  $('#bgSwatches').addEventListener('click', (e) => {
+    const sw = e.target.closest('.sw'); if (!sw) return; selectBg(sw);
   });
-  $('#bgColor').addEventListener('input', (e) => { state.bgColor = e.target.value; $('#bgHex').textContent = e.target.value; buildBg(); if (!running) drawStatic(); });
+  function selectBg(sw) {
+    [...document.querySelectorAll('#bgSwatches .sw')].forEach((x) => x.classList.toggle('sel', x === sw));
+    const bg = sw.dataset.bg;
+    if (bg === 'none') state.bgMode = 'none';
+    else if (bg === 'custom') { state.bgMode = 'color'; state.bgColor = $('#bgColor').value; }
+    else { state.bgMode = 'color'; state.bgColor = sw.dataset.color; }
+    buildBg(); if (!running) drawStatic();
+  }
+  $('#bgColor').addEventListener('input', (e) => { state.bgColor = e.target.value; selectBg($('#bgColor').closest('.sw')); });
   $('#uploadBtn').addEventListener('click', () => $('#bgFile').click());
   $('#bgFile').addEventListener('change', (e) => {
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => { const im = new Image(); im.onload = () => { bgImg = im; buildBg(); if (!running) drawStatic(); }; im.src = reader.result; state.bgImage = reader.result; $('#fileName').textContent = file.name; };
+    reader.onload = () => { const im = new Image(); im.onload = () => { bgImg = im; state.bgMode = 'image';
+      [...document.querySelectorAll('#bgSwatches .sw')].forEach((x) => x.classList.remove('sel'));
+      buildBg(); if (!running) drawStatic(); }; im.src = reader.result; $('#fileName').textContent = file.name + ' · baked into export.'; };
     reader.readAsDataURL(file);
   });
 
+  // Size + position
+  $('#sizeRange').addEventListener('input', (e) => { state.size = +e.target.value; $('#sizeVal').textContent = Math.round(state.size) + '%'; rebuildField(); if (!running) drawStatic(); });
   const bindCoord = (id, key) => { const el = $('#' + id); el.addEventListener('input', () => { const v = parseFloat(el.value); state[key] = isNaN(v) ? 0 : v; rebuildField(); if (!running) drawStatic(); }); };
   bindCoord('posX', 'posX'); bindCoord('posY', 'posY');
+  $('#centerBtn').addEventListener('click', () => { state.posX = 0; state.posY = 0; $('#posX').value = 0; $('#posY').value = 0; rebuildField(); if (!running) drawStatic(); });
 
   $('#play').addEventListener('click', () => setPlay(!state.play));
   $('#download').addEventListener('click', exportPNG);
-
   $('#randomize').addEventListener('click', () => {
-    state.amount = 6 + Math.random() * 34; state.feather = Math.random() * 50;
-    state.posX = Math.round((Math.random() - 0.5) * 200); state.posY = Math.round((Math.random() - 0.5) * 220);
+    state.amount = 6 + Math.random() * 30; state.feather = Math.random() * 50;
+    state.posX = Math.round((Math.random() - 0.5) * VB_W * 0.3); state.posY = Math.round((Math.random() - 0.5) * VB_H * 0.3);
     $('#posX').value = state.posX; $('#posY').value = state.posY;
-    if (state.bgMode === 'color') { state.bgColor = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'); $('#bgColor').value = state.bgColor; $('#bgHex').textContent = state.bgColor; buildBg(); }
     DEFS.forEach(updateDial); rebuildField(); if (!running) drawStatic();
   });
 
-  // ---------- responsive device-resolution sizing ----------
-  function resize() {
-    const rect = frameEl.getBoundingClientRect();
-    if (!rect.width) return;
+  // ===================================================================
+  //  Responsive sizing — fit the frame to the stage, render at device px
+  // ===================================================================
+  const stageEl = $('#stage');
+  function resize(force) {
+    const sr = stageEl.getBoundingClientRect();
+    const availW = sr.width - 44, availH = sr.height - 64;
+    if (availW <= 0 || availH <= 0) return;
+    let fw = availW, fh = fw * VB_H / VB_W;
+    if (fh > availH) { fh = availH; fw = fh * VB_W / VB_H; }
+    frameEl.style.width = fw + 'px'; frameEl.style.height = fh + 'px';
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.min(MAXW, Math.max(600, Math.round(rect.width * dpr)));
+    const w = Math.min(MAXW, Math.max(480, Math.round(fw * dpr)));
     const h = Math.round(w * VB_H / VB_W);
-    if (w === W && h === H) return;
+    if (!force && w === W && h === H) return;
     allocate(w, h);
     NCELL = W / GW;
-    reach = 0.2 * W; invr2 = 1 / (reach * reach);
+    reach = 0.15 * Math.max(W, H); invr2 = 1 / (reach * reach);
     cx = tcx = W / 2; cy = tcy = H / 2;
     buildBg(); rebuildField(); drawStatic();
   }
 
-  // init
-  resize();
-  if (window.ResizeObserver) { let to; new ResizeObserver(() => { clearTimeout(to); to = setTimeout(resize, 120); }).observe(frameEl); }
-  else window.addEventListener('resize', resize);
+  setAspect(state.aspectW, state.aspectH, ratioBox.children[1]);
+  if (window.ResizeObserver) { let to; new ResizeObserver(() => { clearTimeout(to); to = setTimeout(() => resize(false), 100); }).observe(stageEl); }
+  else window.addEventListener('resize', () => resize(false));
 })();
 </script>
 </body>

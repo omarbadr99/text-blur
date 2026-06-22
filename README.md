@@ -14,17 +14,19 @@ Just open `index.html` in any modern browser. There is no build step.
 
 | Control | What it does |
 | --- | --- |
-| **Text** | The word to render |
+| **Effect** | Left rail — **Blur** is selected; more effects will slot in here later |
+| **Text** | The word to render (default "Blur") |
 | **Font** | A built-in list of common fonts, plus **Use my computer's fonts** (lists every font installed locally — Chrome/Edge only, asks permission once) and **Upload…** (load a `.ttf`/`.otf`/`.woff` file, works in any browser). Heavy/bold fonts melt best |
 | **Text colour** | Fill colour of the wordmark |
-| **Background** | **None** (transparent, the default) · **Colour** (solid fill) · **Image** (upload your own) |
-| **Position X / Y** | Figma-style number fields to place the wordmark |
+| **Aspect ratio** | Row under the frame — 1:1, 16:9, 9:16, 4:3, 3:4 |
+| **Background** | Swatches (transparent, presets, custom colour) plus **Upload image** — baked into export |
+| **Size / Position** | Size slider; drag the text in the frame to place it (X/Y fields stay in sync), or **Re-center** |
 | **Amount** | How far the liquid spreads — higher merges more letters into one mark |
 | **Feather** | How soft the liquid edge is (low = crisp solid blobs, high = softer) |
-| **Play** | With Play **off** the whole word melts by *Amount*. With Play **on** the word is crisp until you move your cursor over it — the letters near the cursor liquefy and flow, merging and pulling apart, then settle back as you move away |
+| **Play** (top bar) | With Play **off** the whole word melts by *Amount*. With Play **on** the word is crisp until you move your cursor over it — the letters liquefy and flow, then settle back |
+| **Export** (top bar) | PNG at ~2000px on the long edge; transparency preserved when the background is *None* |
 
-Plus a **Surprise me** randomiser and **Download PNG** (exports at 1600 × 2000;
-transparency is preserved when the background is *None*).
+Plus a **Surprise me** randomiser.
 
 ## How it works
 
