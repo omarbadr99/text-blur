@@ -163,7 +163,7 @@
   const $ = (s) => document.querySelector(s);
 
   const VB_W = 800, VB_H = 1000;       // logical design space
-  const FIELD = 0.7;                    // field resolution scale (perf vs sharpness)
+  const FIELD = 1.25;                   // field resolution scale (perf vs sharpness)
   const FW = Math.round(VB_W * FIELD), FH = Math.round(VB_H * FIELD);
   const THR = 0.34;                     // metaball threshold (low enough that blobs stay solid as they merge)
 
@@ -306,7 +306,7 @@
   }
 
   // ---------- interaction loop ----------
-  const SIGMA = 0.14 * FW, TWO_S2 = 2 * SIGMA * SIGMA;
+  const REACH = 0.30 * FW, INVR2 = 1 / (REACH * REACH); // finite-support influence radius
   const NOISE_AMP = 0.55, SCROLL_X = 14, SCROLL_Y = 9;
   let hover = false, running = false, raf = null;
   let tcx = FW / 2, tcy = FH / 2, cx = FW / 2, cy = FH / 2, s = 0;
@@ -322,16 +322,17 @@
     work.set(baseRGBA);
     const { r, g, b } = parseColor(state.textColor);
     const e = featherEdge(), thr = THR;
-    const reach = 3.0 * SIGMA;
-    const x0 = Math.max(0, (cx - reach) | 0), x1 = Math.min(FW, (cx + reach) | 0);
-    const y0 = Math.max(0, (cy - reach) | 0), y1 = Math.min(FH, (cy + reach) | 0);
+    const x0 = Math.max(0, (cx - REACH) | 0), x1 = Math.min(FW, (cx + REACH) | 0);
+    const y0 = Math.max(0, (cy - REACH) | 0), y1 = Math.min(FH, (cy + REACH) | 0);
     const nox = t * SCROLL_X, noy = t * SCROLL_Y;
 
     for (let y = y0; y < y1; y++) {
       const dy = y - cy, dy2 = dy * dy, rowi = y * FW;
       for (let x = x0; x < x1; x++) {
         const dx = x - cx;
-        const w = s * Math.exp(-(dx * dx + dy2) / TWO_S2);
+        const q = (dx * dx + dy2) * INVR2;    // 0 at centre → 1 at REACH
+        if (q >= 1) continue;
+        const f = 1 - q, w = s * f * f;       // smooth finite-support falloff (no exp)
         if (w < 0.004) continue;             // leave rest-state pixel untouched
         const i = rowi + x;
         let field = Acrisp[i] * (1 - w) + Ablur[i] * w;
