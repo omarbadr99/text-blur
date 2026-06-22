@@ -20,7 +20,7 @@ Just open `index.html` in any modern browser. There is no build step.
 | **Position X / Y** | Figma-style number fields to place the wordmark |
 | **Amount** | Gaussian blur strength — higher melts letters together |
 | **Feather** | Softens the gooey threshold; low = crisp blob edges, high = soft glow |
-| **Play** | Animates the effect: hover the canvas and the blur drifts toward your cursor, then breathes when still (like the reference clip) |
+| **Play** | The word stays fixed and crisp; a soft lens that follows your cursor melts only the area you hover over, fading back to sharp as you move away |
 
 Plus a **Surprise me** randomiser and **Download PNG** (exports at 1600 × 2000;
 transparency is preserved when the background is *None*).

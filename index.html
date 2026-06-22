@@ -162,6 +162,23 @@
               values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -11" result="goo"/>
             <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
           </filter>
+
+          <!-- soft circular lens that reveals the blurred copy only near the cursor -->
+          <radialGradient id="lensGrad" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stop-color="#fff"/>
+            <stop offset="55%"  stop-color="#fff"/>
+            <stop offset="100%" stop-color="#000"/>
+          </radialGradient>
+          <mask id="lens" maskUnits="userSpaceOnUse" x="-600" y="-600" width="2000" height="2200">
+            <circle id="lensCircle" cx="-9999" cy="-9999" r="190" fill="url(#lensGrad)"/>
+          </mask>
+
+          <!-- single source glyph reused by the crisp + blurred layers -->
+          <text id="wordSrc" x="400" y="500" text-anchor="middle" dominant-baseline="central"
+                font-family="'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+                font-weight="900" font-size="150" fill="#1c1714"
+                letter-spacing="-6">Nocaff</text>
+
           <clipPath id="frameClip"><rect width="800" height="1000"/></clipPath>
         </defs>
 
@@ -170,13 +187,10 @@
           <rect id="bg" width="800" height="1000" fill="none"/>
           <image id="bgImage" width="800" height="1000" preserveAspectRatio="xMidYMid slice"
                  style="display:none"/>
-          <!-- gooey wordmark -->
+          <!-- gooey wordmark: crisp base + blurred copy masked to the hover lens -->
           <g id="textGroup">
-            <text id="word" x="400" y="500" text-anchor="middle" dominant-baseline="central"
-                  filter="url(#goo)"
-                  font-family="'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans-serif"
-                  font-weight="900" font-size="150" fill="#1c1714"
-                  letter-spacing="-6">Nocaff</text>
+            <use id="wordCrisp" href="#wordSrc" xlink:href="#wordSrc" style="display:none"/>
+            <use id="wordBlur"  href="#wordSrc" xlink:href="#wordSrc" filter="url(#goo)"/>
           </g>
         </g>
       </svg>
@@ -260,8 +274,7 @@
     { key: 'feather', name: 'Feather', min: 0, max: 100, def: 18 },
   ];
 
-  // live blur driven by Play mode (text position stays fixed)
-  let dynBlur = 0;
+  const LENS_R = 190; // radius of the hover blur lens (viewBox units)
 
   // ===================================================================
   //  Rendering
@@ -275,12 +288,22 @@
 
   function render() {
     $('#textGroup').setAttribute('transform', `translate(${state.posX} ${state.posY})`);
-    // Play mode: text is crisp (0) by default and only blurs on hover.
-    // Otherwise the Amount dial sets a static blur for designing a still.
-    const blur = state.play ? dynBlur : state.amount;
-    $('#gooBlur').setAttribute('stdDeviation', Math.max(0, blur).toFixed(2));
+    $('#gooBlur').setAttribute('stdDeviation', Math.max(0, state.amount).toFixed(2));
     $('#gooMatrix').setAttribute('values', gooMatrixValues(state.feather));
-    $('#word').setAttribute('fill', state.textColor);
+    $('#wordSrc').setAttribute('fill', state.textColor);
+  }
+
+  // Play mode shows a crisp base word with the blurred copy revealed only inside
+  // the lens; still mode shows the whole word blurred so you can design a poster.
+  function applyMode() {
+    const crisp = $('#wordCrisp'), blur = $('#wordBlur');
+    if (state.play) {
+      crisp.style.display = '';
+      blur.setAttribute('mask', 'url(#lens)');
+    } else {
+      crisp.style.display = 'none';
+      blur.removeAttribute('mask');
+    }
   }
 
   function applyBg() {
@@ -371,6 +394,8 @@
   // ===================================================================
   let raf = null, hover = false;
   let mx = 0.5, my = 0.5;
+  // current (smoothed) lens centre + radius, in the wordmark's local space
+  let lensX = -9999, lensY = -9999, lensR = 0;
 
   const frame = $('#frame');
   frame.addEventListener('pointermove', (e) => {
@@ -382,20 +407,20 @@
   frame.addEventListener('pointerleave', () => { hover = false; });
 
   function loop() {
-    // The text never moves. Blur is 0 unless the cursor is near the wordmark,
-    // ramping up to the Amount value the closer you hover to it.
-    let factor = 0;
-    if (hover) {
-      const vx = mx * 800, vy = my * 1000;            // cursor in viewBox space
-      const cx = 400 + state.posX, cy = 500 + state.posY; // wordmark centre
-      const dist = Math.hypot(vx - cx, vy - cy);
-      const radius = 420;
-      factor = Math.max(0, Math.min(1, 1 - dist / radius));
-      factor = factor * factor * (3 - 2 * factor);   // smoothstep
-    }
-    const targetBlur = factor * state.amount;
-    dynBlur += (targetBlur - dynBlur) * 0.18;          // smooth follow
-    render();
+    // The text stays put and crisp; only the lens around the cursor melts.
+    // Target lens position in local space (the group is translated by posX/posY).
+    const targetX = mx * 800 - state.posX;
+    const targetY = my * 1000 - state.posY;
+    const targetR = hover ? LENS_R : 0;
+    // snap the centre when the lens is currently hidden so it doesn't sweep in
+    if (lensR < 1) { lensX = targetX; lensY = targetY; }
+    else { lensX += (targetX - lensX) * 0.3; lensY += (targetY - lensY) * 0.3; }
+    lensR += (targetR - lensR) * 0.25;
+
+    const c = $('#lensCircle');
+    c.setAttribute('cx', lensX.toFixed(1));
+    c.setAttribute('cy', lensY.toFixed(1));
+    c.setAttribute('r', Math.max(0, lensR).toFixed(1));
     raf = requestAnimationFrame(loop);
   }
   function setPlay(on) {
@@ -404,12 +429,13 @@
     btn.classList.toggle('active', on);
     btn.textContent = on ? '⏸ Stop' : '▶ Play — blur on hover';
     frame.classList.toggle('playing', on);
+    applyMode();
     if (on) {
-      dynBlur = 0;                                     // start crisp
+      hover = false; lensR = 0; lensX = lensY = -9999;
+      $('#lensCircle').setAttribute('r', '0');
       raf = requestAnimationFrame(loop);
     } else {
       cancelAnimationFrame(raf); raf = null;
-      dynBlur = 0;
       render();
     }
   }
@@ -449,7 +475,7 @@
   const dialBox = $('#dials');
   DEFS.forEach((def) => { dialBox.appendChild(buildDial(def)); updateDial(def); setupDial(def); });
 
-  $('#textInput').addEventListener('input', (e) => { $('#word').textContent = e.target.value || ' '; });
+  $('#textInput').addEventListener('input', (e) => { $('#wordSrc').textContent = e.target.value || ' '; });
 
   $('#textColor').addEventListener('input', (e) => {
     state.textColor = e.target.value; $('#textHex').textContent = e.target.value; render();
@@ -509,6 +535,7 @@
 
   // init
   applyBg();
+  applyMode();
   render();
 })();
 </script>
