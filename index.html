@@ -166,23 +166,12 @@
           <!-- soft circular lens that reveals the blurred copy only near the cursor -->
           <radialGradient id="lensGrad" cx="50%" cy="50%" r="50%">
             <stop offset="0%"   stop-color="#fff"/>
-            <stop offset="88%"  stop-color="#fff"/>
+            <stop offset="90%"  stop-color="#fff"/>
             <stop offset="100%" stop-color="#000"/>
-          </radialGradient>
-          <radialGradient id="lensGradInv" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stop-color="#000"/>
-            <stop offset="88%"  stop-color="#000"/>
-            <stop offset="100%" stop-color="#fff"/>
           </radialGradient>
           <!-- reveals the blurred copy inside the lens -->
           <mask id="lens" maskUnits="userSpaceOnUse" x="-600" y="-600" width="2000" height="2200">
             <circle id="lensCircle" cx="-9999" cy="-9999" r="190" fill="url(#lensGrad)"/>
-          </mask>
-          <!-- complement: keeps the crisp copy everywhere EXCEPT inside the lens,
-               so the two layers crossfade instead of stacking (no opacity fringe) -->
-          <mask id="lensInv" maskUnits="userSpaceOnUse" x="-600" y="-600" width="2000" height="2200">
-            <rect x="-600" y="-600" width="2000" height="2200" fill="#fff"/>
-            <circle id="lensCircleInv" cx="-9999" cy="-9999" r="190" fill="url(#lensGradInv)"/>
           </mask>
 
           <!-- single source glyph reused by the crisp + blurred layers -->
@@ -310,12 +299,12 @@
   function applyMode() {
     const crisp = $('#wordCrisp'), blur = $('#wordBlur');
     if (state.play) {
+      // crisp copy stays fully drawn underneath (no gaps); the melted copy is
+      // laid on top only inside the lens.
       crisp.style.display = '';
-      crisp.setAttribute('mask', 'url(#lensInv)');
       blur.setAttribute('mask', 'url(#lens)');
     } else {
       crisp.style.display = 'none';
-      crisp.removeAttribute('mask');
       blur.removeAttribute('mask');
     }
   }
@@ -431,11 +420,10 @@
     else { lensX += (targetX - lensX) * 0.3; lensY += (targetY - lensY) * 0.3; }
     lensR += (targetR - lensR) * 0.25;
 
-    const x = lensX.toFixed(1), y = lensY.toFixed(1), r = Math.max(0, lensR).toFixed(1);
-    for (const id of ['#lensCircle', '#lensCircleInv']) {
-      const c = $(id);
-      c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', r);
-    }
+    const c = $('#lensCircle');
+    c.setAttribute('cx', lensX.toFixed(1));
+    c.setAttribute('cy', lensY.toFixed(1));
+    c.setAttribute('r', Math.max(0, lensR).toFixed(1));
     raf = requestAnimationFrame(loop);
   }
   function setPlay(on) {
@@ -448,7 +436,6 @@
     if (on) {
       hover = false; lensR = 0; lensX = lensY = -9999;
       $('#lensCircle').setAttribute('r', '0');
-      $('#lensCircleInv').setAttribute('r', '0');
       raf = requestAnimationFrame(loop);
     } else {
       cancelAnimationFrame(raf); raf = null;
