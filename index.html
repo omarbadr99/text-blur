@@ -75,15 +75,13 @@
     background-size: 22px 22px; background-position: 0 0, 0 11px, 11px -11px, -11px 0;
   }
   canvas.canvas { display: block; width: 100%; height: 100%; }
-  .ratios { display: flex; gap: 8px; align-items: flex-end; }
-  .ratio { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
-  .ratio .glyph {
-    border: 1.5px solid #cfcfd6; border-radius: 4px; background: var(--card);
-    transition: border-color .15s, background .15s;
-  }
-  .ratio:hover .glyph { border-color: #aaa; }
+  .ratios { display: flex; gap: 6px; align-items: center; }
+  .ratio { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 8px; cursor: pointer; padding: 9px 14px; border: 2px solid transparent; border-radius: 14px; transition: border-color .15s, background .15s; }
+  .ratio:hover .glyph { border-color: #a8a8b0; }
+  .ratio.active { border-color: var(--accent); background: var(--card); }
+  .ratio .glyph { border: 1.5px solid #cdcdd4; border-radius: 5px; background: transparent; transition: border-color .15s, background .15s; }
   .ratio.active .glyph { border-color: var(--ink); background: var(--ink); }
-  .ratio .rlabel { font-size: 10px; color: var(--muted); font-weight: 600; }
+  .ratio .rlabel { font-size: 11px; color: var(--muted); font-weight: 600; }
   .ratio.active .rlabel { color: var(--ink); }
 
   /* ---------- right panel ---------- */
@@ -120,28 +118,20 @@
   input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 16px; background: transparent; cursor: pointer; }
   input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--line); }
   input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line); }
-  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 1px solid #c8c8d0; box-shadow: 0 1px 2px rgba(0,0,0,.18); margin-top: -6px; }
-  input[type="range"]::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 1px solid #c8c8d0; box-shadow: 0 1px 2px rgba(0,0,0,.18); }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 1px solid #d0d0d6; box-shadow: 0 1px 3px rgba(0,0,0,.16); margin-top: -7px; }
+  input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 1px solid #d0d0d6; box-shadow: 0 1px 3px rgba(0,0,0,.16); }
 
   /* swatches */
-  .swatches { display: flex; flex-wrap: wrap; gap: 8px; }
-  .sw { width: 28px; height: 28px; border-radius: 8px; border: 1px solid rgba(0,0,0,.12); cursor: pointer; position: relative; padding: 0; }
-  .sw.sel { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent); }
+  .swatches { display: flex; flex-wrap: wrap; gap: 9px; }
+  .sw { width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(0,0,0,.10); cursor: pointer; position: relative; padding: 0; }
+  .sw.sel { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent); border-color: transparent; }
   .sw.none {
     background-color: #fff;
     background-image: linear-gradient(45deg,#dcdce1 25%,transparent 25%),linear-gradient(-45deg,#dcdce1 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#dcdce1 75%),linear-gradient(-45deg,transparent 75%,#dcdce1 75%);
-    background-size: 10px 10px; background-position: 0 0,0 5px,5px -5px,-5px 0;
+    background-size: 11px 11px; background-position: 0 0,0 5.5px,5.5px -5.5px,-5.5px 0;
   }
-  .sw.custom { overflow: hidden; }
-  .sw.custom input { position: absolute; inset: -6px; width: 200%; height: 200%; border: none; padding: 0; cursor: pointer; }
-
-  /* dials */
-  .dials { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .dial { display: flex; flex-direction: column; align-items: center; gap: 7px; user-select: none; }
-  .knob { position: relative; width: 78px; height: 78px; touch-action: none; cursor: ns-resize; }
-  .knob svg { display: block; width: 100%; height: 100%; }
-  .knob .kval { position: absolute; inset: 0; display: grid; place-items: center; font-size: 16px; font-weight: 700; pointer-events: none; }
-  .dial .kname { font-size: 11px; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  .ghostbtn { display: inline-flex; align-items: center; padding: 9px 15px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; }
+  .ghostbtn:hover { border-color: #d4d4da; }
 
   .coords { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
   .coord { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); padding: 0 9px; }
@@ -196,21 +186,30 @@
 
       <div class="section">
         <h2>Blur</h2>
-        <div class="dials" id="dials"></div>
+        <div class="stack">
+          <div class="slider">
+            <div class="head"><span class="lab">Amount</span><span class="val" id="amountVal">8</span></div>
+            <input type="range" id="amountRange" min="0" max="40" value="8" step="1"/>
+          </div>
+          <div class="slider">
+            <div class="head"><span class="lab">Feather</span><span class="val" id="featherVal">18%</span></div>
+            <input type="range" id="featherRange" min="0" max="100" value="18" step="1"/>
+          </div>
+        </div>
       </div>
 
       <div class="section">
         <h2>Background</h2>
         <div class="swatches" id="bgSwatches">
           <button class="sw none sel" data-bg="none" title="Transparent"></button>
-          <button class="sw" data-bg="color" data-color="#0b0b0c" style="background:#0b0b0c"></button>
-          <button class="sw" data-bg="color" data-color="#ece7da" style="background:#ece7da"></button>
+          <button class="sw" data-bg="color" data-color="#1a1a1c" style="background:#1a1a1c"></button>
+          <button class="sw" data-bg="color" data-color="#ece6d9" style="background:#ece6d9"></button>
           <button class="sw" data-bg="color" data-color="#14233b" style="background:#14233b"></button>
-          <button class="sw" data-bg="color" data-color="#3a2218" style="background:#3a2218"></button>
-          <button class="sw" data-bg="color" data-color="#1f3a2a" style="background:#1f3a2a"></button>
-          <button class="sw custom" data-bg="custom" title="Custom colour"><input type="color" id="bgColor" value="#e2580f"/></button>
+          <button class="sw" data-bg="color" data-color="#241a12" style="background:#241a12"></button>
+          <button class="sw" data-bg="color" data-color="#1b3328" style="background:#1b3328"></button>
+          <button class="sw" data-bg="color" data-color="#16202e" style="background:#16202e"></button>
         </div>
-        <div class="miniRow" style="margin-top:10px"><button class="mini" id="uploadBtn">Upload image…</button></div>
+        <div style="margin-top:12px"><button class="ghostbtn" id="uploadBtn">Upload image</button></div>
         <input type="file" id="bgFile" accept="image/*" hidden/>
         <div class="note" id="fileName">Baked into every export.</div>
       </div>
@@ -461,49 +460,16 @@
   }
 
   // ===================================================================
-  //  Dials (Amount + Feather)
+  //  Blur sliders (Amount + Feather)
   // ===================================================================
-  const DEFS = [
-    { key: 'amount',  name: 'Amount',  min: 0, max: 40,  def: 8  },
-    { key: 'feather', name: 'Feather', min: 0, max: 100, def: 18 },
-  ];
-  const R = 31, CIRC = 2 * Math.PI * R, ARC = 0.78;
-  function buildDial(def) {
-    const wrap = document.createElement('div'); wrap.className = 'dial';
-    wrap.innerHTML = `
-      <div class="knob" data-key="${def.key}">
-        <svg viewBox="0 0 78 78">
-          <circle cx="39" cy="39" r="${R}" fill="#fafafb" stroke="#e7e7ea" stroke-width="6"/>
-          <circle cx="39" cy="39" r="${R}" fill="none" stroke="#eee" stroke-width="6" stroke-linecap="round"
-            stroke-dasharray="${(CIRC*ARC).toFixed(1)} ${CIRC}" transform="rotate(${90+(1-ARC)*180} 39 39)"/>
-          <circle class="prog" cx="39" cy="39" r="${R}" fill="none" stroke="#2f6df6" stroke-width="6" stroke-linecap="round"
-            stroke-dasharray="0 ${CIRC}" transform="rotate(${90+(1-ARC)*180} 39 39)"/>
-          <line class="ind" x1="39" y1="39" x2="39" y2="15" stroke="#18181b" stroke-width="3" stroke-linecap="round"/>
-        </svg><div class="kval"></div>
-      </div><div class="kname">${def.name}</div>`;
-    return wrap;
-  }
-  function updateDial(def) {
-    const knob = document.querySelector(`.knob[data-key="${def.key}"]`);
-    const frac = (state[def.key] - def.min) / (def.max - def.min);
-    knob.querySelector('.prog').setAttribute('stroke-dasharray', `${(CIRC*ARC*frac).toFixed(1)} ${CIRC}`);
-    knob.querySelector('.ind').setAttribute('transform', `rotate(${(1-ARC)*180 + frac*ARC*360} 39 39)`);
-    knob.querySelector('.kval').textContent = Math.round(state[def.key]);
-  }
-  function setupDial(def) {
-    const knob = document.querySelector(`.knob[data-key="${def.key}"]`);
-    let startY = 0, startVal = 0, dragging = false;
-    const onChange = () => { if (def.key === 'amount') computeBlur(); buildBase(); if (!running) drawStatic(); };
-    const move = (e) => { if (!dragging) return; const y = e.touches ? e.touches[0].clientY : e.clientY;
-      state[def.key] = Math.max(def.min, Math.min(def.max, startVal + ((startY - y) / 180) * (def.max - def.min))); updateDial(def); onChange(); };
-    const up = () => { dragging = false; window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); window.removeEventListener('touchmove', move); window.removeEventListener('touchend', up); };
-    const down = (e) => { dragging = true; startY = e.touches ? e.touches[0].clientY : e.clientY; startVal = state[def.key];
-      window.addEventListener('mousemove', move); window.addEventListener('mouseup', up); window.addEventListener('touchmove', move, { passive: false }); window.addEventListener('touchend', up); e.preventDefault(); };
-    knob.addEventListener('mousedown', down);
-    knob.addEventListener('touchstart', down, { passive: false });
-    knob.addEventListener('dblclick', () => { state[def.key] = def.def; updateDial(def); onChange(); });
-    knob.addEventListener('wheel', (e) => { e.preventDefault(); const step = (def.max - def.min) / 50;
-      state[def.key] = Math.max(def.min, Math.min(def.max, state[def.key] - Math.sign(e.deltaY) * step)); updateDial(def); onChange(); }, { passive: false });
+  function bindEffect(id, key, valId, suffix) {
+    const el = $('#' + id), v = $('#' + valId);
+    el.value = state[key]; v.textContent = Math.round(state[key]) + suffix;
+    el.addEventListener('input', () => {
+      state[key] = +el.value; v.textContent = Math.round(state[key]) + suffix;
+      if (key === 'amount') computeBlur();
+      buildBase(); if (!running) drawStatic();
+    });
   }
 
   // ===================================================================
@@ -553,7 +519,7 @@
   const ratioBox = $('#ratios');
   RATIOS.forEach(([aw, ah, label]) => {
     const el = document.createElement('button'); el.className = 'ratio'; el.dataset.w = aw; el.dataset.h = ah;
-    const gw = aw >= ah ? 26 : 26 * aw / ah, gh = ah >= aw ? 18 : 18 * ah / aw;
+    const gw = aw >= ah ? 24 : 24 * aw / ah, gh = ah >= aw ? 24 : 24 * ah / aw;
     el.innerHTML = `<span class="glyph" style="width:${gw}px;height:${gh}px"></span><span class="rlabel">${label}</span>`;
     if (aw === state.aspectW && ah === state.aspectH) el.classList.add('active');
     el.addEventListener('click', () => setAspect(aw, ah, el));
@@ -570,8 +536,8 @@
   // ===================================================================
   //  Wiring
   // ===================================================================
-  const dialBox = $('#dials');
-  DEFS.forEach((def) => { dialBox.appendChild(buildDial(def)); updateDial(def); setupDial(def); });
+  bindEffect('amountRange', 'amount', 'amountVal', '');
+  bindEffect('featherRange', 'feather', 'featherVal', '%');
 
   $('#textInput').addEventListener('input', (e) => { state.text = e.target.value; rebuildField(); if (!running) drawStatic(); });
 
@@ -620,11 +586,9 @@
     [...document.querySelectorAll('#bgSwatches .sw')].forEach((x) => x.classList.toggle('sel', x === sw));
     const bg = sw.dataset.bg;
     if (bg === 'none') state.bgMode = 'none';
-    else if (bg === 'custom') { state.bgMode = 'color'; state.bgColor = $('#bgColor').value; }
     else { state.bgMode = 'color'; state.bgColor = sw.dataset.color; }
     buildBg(); if (!running) drawStatic();
   }
-  $('#bgColor').addEventListener('input', (e) => { state.bgColor = e.target.value; selectBg($('#bgColor').closest('.sw')); });
   $('#uploadBtn').addEventListener('click', () => $('#bgFile').click());
   $('#bgFile').addEventListener('change', (e) => {
     const file = e.target.files[0]; if (!file) return;
@@ -647,7 +611,9 @@
     state.amount = 6 + Math.random() * 30; state.feather = Math.random() * 50;
     state.posX = Math.round((Math.random() - 0.5) * VB_W * 0.3); state.posY = Math.round((Math.random() - 0.5) * VB_H * 0.3);
     $('#posX').value = state.posX; $('#posY').value = state.posY;
-    DEFS.forEach(updateDial); rebuildField(); if (!running) drawStatic();
+    $('#amountRange').value = state.amount; $('#amountVal').textContent = Math.round(state.amount);
+    $('#featherRange').value = state.feather; $('#featherVal').textContent = Math.round(state.feather) + '%';
+    rebuildField(); if (!running) drawStatic();
   });
 
   // ===================================================================
