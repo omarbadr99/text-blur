@@ -192,6 +192,10 @@
             <input type="range" id="amountRange" min="0" max="40" value="8" step="1"/>
           </div>
           <div class="slider">
+            <div class="head"><span class="lab">Bleed</span><span class="val" id="bleedVal">70%</span></div>
+            <input type="range" id="bleedRange" min="0" max="100" value="70" step="1"/>
+          </div>
+          <div class="slider">
             <div class="head"><span class="lab">Feather</span><span class="val" id="featherVal">18%</span></div>
             <input type="range" id="featherRange" min="0" max="100" value="18" step="1"/>
           </div>
@@ -249,7 +253,7 @@
 
   const state = {
     text: 'Blur', textColor: '#1c1714', fontFamily: 'Arial Black',
-    posX: 0, posY: 0, size: 40, amount: 8, feather: 18,
+    posX: 0, posY: 0, size: 40, amount: 8, feather: 18, random: 70,
     bgMode: 'none', bgColor: '#e2580f', bgImage: null,
     play: false, aspectW: 16, aspectH: 9,
   };
@@ -264,7 +268,7 @@
   const octx = offTxt.getContext('2d');
 
   let W = 0, H = 0, SCALE = 1;
-  let Acrisp, Ablur, baseRGBA, textImage;
+  let Acrisp, Ablur, baseRGBA, textImage, Nfield;
 
   function allocate(w, h) {
     W = w; H = h; SCALE = W / VB_W;
@@ -276,6 +280,8 @@
     Ablur = new Float32Array(W * H);
     baseRGBA = new Uint8ClampedArray(W * H * 4);
     textImage = tctx.createImageData(W, H);
+    Nfield = new Float32Array(W * H);
+    fillNfield();
   }
 
   // ---------- helpers ----------
@@ -286,7 +292,29 @@
   const fontPx = () => (state.size / 100) * VB_LONG * 0.42;
   const fontString = (px) => `900 ${px}px "${state.fontFamily}", 'Helvetica Neue', Helvetica, Arial, sans-serif`;
 
-  // ---------- value noise ----------
+  // ---------- bleed field (spatial, resolution-independent random melt map) ----------
+  // Two octaves of value noise sampled in normalized [0,1] space so the pattern is
+  // stable across resolutions and matches between preview and export.
+  const G1 = 6, G2 = 13;
+  let g1, g2;
+  function makeBleedGrid() {
+    g1 = new Float32Array((G1 + 1) * (G1 + 1)); for (let i = 0; i < g1.length; i++) g1[i] = Math.random();
+    g2 = new Float32Array((G2 + 1) * (G2 + 1)); for (let i = 0; i < g2.length; i++) g2[i] = Math.random();
+  }
+  function gsample(g, G, u, v) {
+    u *= G; v *= G;
+    let x0 = Math.min(G - 1, Math.max(0, Math.floor(u))), y0 = Math.min(G - 1, Math.max(0, Math.floor(v)));
+    const fx = u - x0, fy = v - y0, sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const i = y0 * (G + 1) + x0;
+    const a = g[i], b = g[i + 1], c = g[i + G + 1], d = g[i + G + 2];
+    const top = a + (b - a) * sx, bot = c + (d - c) * sx;
+    return top + (bot - top) * sy;
+  }
+  function sampleBleed(u, v) { return smoothstep(0.15, 0.85, 0.62 * gsample(g1, G1, u, v) + 0.38 * gsample(g2, G2, u, v)); }
+  function fillNfield() { for (let y = 0; y < H; y++) { const iv = y / H; for (let x = 0; x < W; x++) Nfield[y * W + x] = sampleBleed(x / W, iv); } }
+  makeBleedGrid();
+
+  // ---------- value noise (edge wobble) ----------
   const GW = 26, GH = 32;
   let NCELL = 40;
   const ng = new Float32Array(GW * GH);
@@ -345,9 +373,12 @@
 
   function buildBase() {
     const { r, g, b } = parseColor(state.textColor);
-    const e = featherEdge(), thr = THR, melt = !state.play;
+    const e = featherEdge(), thr = THR, melt = !state.play, rnd = state.random / 100;
     for (let i = 0; i < W * H; i++) {
-      const a = smoothstep(thr - e, thr + e, melt ? Ablur[i] : Acrisp[i]) * 255;
+      // spatially-varying melt weight: some regions bleed fully, others stay crisp
+      const w = melt ? 1 - rnd * (1 - Nfield[i]) : 0;
+      const cov = Acrisp[i] + (Ablur[i] - Acrisp[i]) * w;
+      const a = smoothstep(thr - e, thr + e, cov) * 255;
       const o = i * 4; baseRGBA[o] = r; baseRGBA[o + 1] = g; baseRGBA[o + 2] = b; baseRGBA[o + 3] = a;
     }
   }
@@ -390,7 +421,7 @@
     if (!hover && s < 0.004) { running = false; s = 0; drawStatic(); return; }
 
     const { r, g, b } = parseColor(state.textColor);
-    const e = featherEdge(), thr = THR;
+    const e = featherEdge(), thr = THR, rnd = state.random / 100;
     const x0 = Math.max(0, (cx - reach) | 0), x1 = Math.min(W, Math.ceil(cx + reach));
     const y0 = Math.max(0, (cy - reach) | 0), y1 = Math.min(H, Math.ceil(cy + reach));
     const nox = t * SCROLL_X, noy = t * SCROLL_Y;
@@ -405,9 +436,10 @@
         const dx = x - cx;
         const q = (dx * dx + dy2) * invr2;
         if (q >= 1) continue;
-        const f = 1 - q, m = s * f * f;
-        if (m < 0.004) continue;
+        const f = 1 - q, m0 = s * f * f;
+        if (m0 < 0.004) continue;
         const i = rowi + x;
+        const m = m0 * (1 - rnd * (1 - Nfield[i]));  // uneven, random bleed under the cursor
         let cov = Acrisp[i] + (Ablur[i] - Acrisp[i]) * m;
         cov += (sampleNoise(x + nox, y + noy) - 0.5) * NOISE_AMP * m;
         const a = smoothstep(thr - e, thr + e, cov) * 255;
@@ -492,10 +524,12 @@
     if (r >= 1) { let a = Float32Array.from(Ac), b = new Float32Array(fw * fh);
       for (let p = 0; p < 3; p++) { boxPassH(a, b, fw, fh, r); boxPassV(b, a, fw, fh, r); } Ab = a; }
     const { r: cr, g: cg, b: cb } = parseColor(state.textColor);
-    const e = featherEdge(), thr = THR, melt = !state.play;
+    const e = featherEdge(), thr = THR, melt = !state.play, rnd = state.random / 100;
     const img = o2.createImageData(fw, fh), od = img.data;
     for (let i = 0; i < fw * fh; i++) {
-      const a = smoothstep(thr - e, thr + e, melt ? Ab[i] : Ac[i]) * 255;
+      const w = melt ? 1 - rnd * (1 - sampleBleed((i % fw) / fw, ((i / fw) | 0) / fh)) : 0;
+      const cov = Ac[i] + (Ab[i] - Ac[i]) * w;
+      const a = smoothstep(thr - e, thr + e, cov) * 255;
       const o = i * 4; od[o] = cr; od[o + 1] = cg; od[o + 2] = cb; od[o + 3] = a;
     }
     const txt = document.createElement('canvas'); txt.width = fw; txt.height = fh; txt.getContext('2d').putImageData(img, 0, 0);
@@ -537,6 +571,7 @@
   //  Wiring
   // ===================================================================
   bindEffect('amountRange', 'amount', 'amountVal', '');
+  bindEffect('bleedRange', 'random', 'bleedVal', '%');
   bindEffect('featherRange', 'feather', 'featherVal', '%');
 
   $('#textInput').addEventListener('input', (e) => { state.text = e.target.value; rebuildField(); if (!running) drawStatic(); });
@@ -608,10 +643,12 @@
   $('#play').addEventListener('click', () => setPlay(!state.play));
   $('#download').addEventListener('click', exportPNG);
   $('#randomize').addEventListener('click', () => {
-    state.amount = 6 + Math.random() * 30; state.feather = Math.random() * 50;
+    makeBleedGrid(); if (W) fillNfield();      // fresh random bleed pattern
+    state.amount = 6 + Math.random() * 30; state.feather = Math.random() * 50; state.random = 45 + Math.random() * 50;
     state.posX = Math.round((Math.random() - 0.5) * VB_W * 0.3); state.posY = Math.round((Math.random() - 0.5) * VB_H * 0.3);
     $('#posX').value = state.posX; $('#posY').value = state.posY;
     $('#amountRange').value = state.amount; $('#amountVal').textContent = Math.round(state.amount);
+    $('#bleedRange').value = state.random; $('#bleedVal').textContent = Math.round(state.random) + '%';
     $('#featherRange').value = state.feather; $('#featherVal').textContent = Math.round(state.feather) + '%';
     rebuildField(); if (!running) drawStatic();
   });

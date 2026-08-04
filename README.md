@@ -22,6 +22,7 @@ Just open `index.html` in any modern browser. There is no build step.
 | **Background** | Swatches (transparent, presets, custom colour) plus **Upload image** — baked into export |
 | **Size / Position** | Size slider; drag the text in the frame to place it (X/Y fields stay in sync), or **Re-center** |
 | **Amount** | How far the liquid spreads — higher merges more letters into one mark |
+| **Bleed** | How *uneven* the spread is — 0 melts uniformly, higher makes the bleed random across the word (some parts crisp, some heavily smeared, like a xerox/ink-bleed poster). **Surprise me** reshuffles the pattern |
 | **Feather** | How soft the liquid edge is (low = crisp solid blobs, high = softer) |
 | **Play** (top bar) | With Play **off** the whole word melts by *Amount*. With Play **on** the word is crisp until you move your cursor over it — the letters liquefy and flow, then settle back |
 | **Export** (top bar) | PNG at ~2000px on the long edge; transparency preserved when the background is *None* |
